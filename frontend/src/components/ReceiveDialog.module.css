@@ -1,0 +1,188 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(61, 53, 48, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 100;
+  animation: overlayIn 0.2s ease;
+  padding: 0 0 env(safe-area-inset-bottom, 0);
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ─── ボトムシート ─── */
+.sheet {
+  width: 100%;
+  max-width: 480px;
+  background: var(--surface);
+  border-radius: 28px 28px 0 0;
+  padding: 32px 28px 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  animation: sheetUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 -8px 48px rgba(100, 80, 60, 0.18);
+}
+
+@keyframes sheetUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+/* ─── 送信元バブル ─── */
+.senderBubble {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--surface2);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow);
+  margin-bottom: 4px;
+}
+
+.senderIcon {
+  font-size: 38px;
+  line-height: 1;
+}
+
+/* ─── テキスト ─── */
+.title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+}
+
+.senderName {
+  font-size: 14px;
+  color: var(--text-sub);
+  text-align: center;
+}
+
+.senderName strong {
+  color: var(--text);
+}
+
+.queueHint {
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-sub);
+  text-align: center;
+  background: rgba(255, 193, 7, 0.12);
+  border: 1px solid rgba(200, 150, 40, 0.35);
+  border-radius: var(--radius-sm);
+}
+
+/* ─── ファイル一覧 ─── */
+.fileListWrap {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.fileList {
+  list-style: none;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.fileItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.fileItem:last-child {
+  border-bottom: none;
+}
+
+.fileItemIcon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.fileItemName {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fileItemSize {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.totalSize {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+}
+
+/* ─── ボタン ─── */
+.actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.btnReject,
+.btnAccept {
+  flex: 1;
+  padding: 15px;
+  border-radius: var(--radius);
+  font-size: 15px;
+  font-weight: 700;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.btnReject:active,
+.btnAccept:active {
+  transform: scale(0.97);
+}
+
+.btnReject {
+  background: var(--surface2);
+  color: var(--text-sub);
+  border: 1.5px solid var(--border);
+}
+
+.btnReject:hover {
+  background: var(--surface3);
+}
+
+.btnAccept {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 16px rgba(196, 149, 106, 0.4);
+}
+
+.btnAccept:hover {
+  background: var(--accent-h);
+}

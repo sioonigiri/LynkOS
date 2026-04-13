@@ -1,0 +1,14 @@
+# Render Blueprint 例: リポジトリルートを Web サービスとしてデプロイ（Django + ビルド済み SPA）
+# ダッシュボードで環境変数（DJANGO_SECRET_KEY, DJANGO_ALLOWED_HOSTS, CORS_ALLOWED_ORIGINS 等）を必ず設定してください。
+services:
+  - type: web
+    name: lynkos
+    runtime: python
+    plan: free
+    buildCommand: chmod +x scripts/render-build.sh && ./scripts/render-build.sh
+    startCommand: cd backend && daphne -b 0.0.0.0 -p $PORT config.asgi:application
+    envVars:
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: PYTHON_VERSION
+        value: "3.12.0"

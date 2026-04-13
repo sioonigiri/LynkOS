@@ -1,0 +1,152 @@
+.outer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.iosNotice {
+  background: rgba(255, 193, 7, 0.14);
+  border: 1px solid rgba(200, 150, 40, 0.4);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.iosNoticeHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.iosNoticeTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.iosNoticeClose {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text-sub);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.iosNoticeText {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-sub);
+  margin: 0;
+}
+
+.panel {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 36px 24px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition:
+    border-color 0.18s,
+    background   0.18s,
+    box-shadow   0.18s,
+    transform    0.18s;
+  user-select: none;
+  outline: none;
+}
+
+.panel:hover:not(.disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 5px rgba(196, 149, 106, 0.10);
+}
+
+.panel:focus-visible:not(.disabled) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(196, 149, 106, 0.2);
+}
+
+.dragging {
+  border-color: var(--accent) !important;
+  background: var(--accent-soft) !important;
+  box-shadow: 0 0 0 8px rgba(196, 149, 106, 0.14) !important;
+  transform: scale(1.012);
+}
+
+.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.hidden {
+  display: none;
+}
+
+/* ─── アイコン ───── */
+.iconArea {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  transition: background 0.18s;
+}
+
+.panel:hover:not(.disabled) .iconArea {
+  background: rgba(196, 149, 106, 0.18);
+}
+
+.dropIcon {
+  font-size: 36px;
+  transition: transform 0.18s;
+}
+
+.panel:hover:not(.disabled) .dropIcon,
+.dragging .dropIcon {
+  transform: translateY(-4px);
+}
+
+.spinnerIcon {
+  font-size: 32px;
+  display: inline-block;
+  animation: spin 1.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── テキスト ───── */
+.mainText {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+}
+
+.subText {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+

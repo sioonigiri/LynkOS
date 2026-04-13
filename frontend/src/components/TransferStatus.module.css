@@ -1,0 +1,255 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.inboundStrip {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-sub);
+  padding: 12px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.tabBar {
+  display: flex;
+  gap: 8px;
+  padding: 2px;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-sub);
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--radius-sm) - 2px);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.tab:hover {
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.tabActive {
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.tabCount {
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 1.25rem;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--surface2);
+  color: var(--text-muted);
+}
+
+.tabActive .tabCount {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text-sub);
+}
+
+.tabEmpty {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 12px 0 4px;
+  padding: 8px;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.subheading {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-sub);
+  letter-spacing: 0.02em;
+  margin: 0;
+  padding-left: 2px;
+}
+
+.list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ─── 各アイテム ───── */
+.item {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px 10px;
+  animation: slideIn 0.25s ease;
+  transition: border-color 0.2s;
+  overflow: hidden;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.done,
+.received_saved {
+  border-color: rgba(90, 158, 90, 0.35);
+  background: #f4fbf4;
+}
+
+.received_ready {
+  border-color: rgba(120, 140, 200, 0.4);
+  background: #f4f6fc;
+}
+
+.error, .rejected {
+  border-color: rgba(196, 112, 112, 0.35);
+  background: #fdf4f4;
+}
+
+/* ─── 行 ───── */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.fileIcon {
+  font-size: 24px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fileTapBtn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.fileTapBtn:active {
+  opacity: 0.75;
+}
+
+.meta {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ─── バッジ ───── */
+.badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  background: var(--surface2);
+  color: var(--text-sub);
+}
+
+.badge_queued {
+  background: var(--surface2);
+  color: var(--text-muted);
+}
+
+.badge_sending {
+  background: #fdefd4;
+  color: #8a6020;
+}
+
+.badge_receiving {
+  background: #e8f0fe;
+  color: #2a4a8a;
+}
+
+.badge_done {
+  background: #d8f0d8;
+  color: #347a34;
+}
+
+.badge_received_ready {
+  background: #dde4f8;
+  color: #3a4a8a;
+}
+
+.badge_received_saved {
+  background: #d8f0d8;
+  color: #347a34;
+}
+
+.badge_error, .badge_rejected {
+  background: #fde0e0;
+  color: #8a3434;
+}
+
+/* ─── プログレスバー ───── */
+.track {
+  height: 4px;
+  background: var(--surface2);
+  border-radius: 4px;
+  margin-top: 10px;
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-h));
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  background-size: 200% 100%;
+  animation: shimmer 1.8s linear infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}

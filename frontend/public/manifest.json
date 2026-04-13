@@ -1,0 +1,26 @@
+{
+  "name": "LynkOS",
+  "short_name": "LynkOS",
+  "description": "アカウント不要・近くのデバイスへワンタップ送信（PWA）",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f5f0e8",
+  "theme_color": "#c4956a",
+  "categories": ["utilities"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
