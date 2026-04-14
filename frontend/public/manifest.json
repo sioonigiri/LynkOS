@@ -2,7 +2,7 @@
   "name": "LynkOS",
   "short_name": "LynkOS",
   "description": "アカウント不要・近くのデバイスへワンタップ送信（PWA）",
-  "start_url": "/",
+  "start_url": "/app",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",

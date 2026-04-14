@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import DeviceList from './components/DeviceList'
 import SendPanel from './components/SendPanel'
 import TransferStatus from './components/TransferStatus'
@@ -107,6 +108,10 @@ export default function App() {
       setTransfers((prev) => pruneExpired(prev))
     }, 60_000)
     return () => clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    document.title = 'LynkOS'
   }, [])
 
   // ── 受信確認 ──
@@ -383,7 +388,7 @@ export default function App() {
     <div className={styles.layout}>
       {/* ヘッダー */}
       <header className={styles.header}>
-        <div className={styles.logo}>
+        <Link to="/" className={styles.logo} aria-label="トップページへ">
           <svg className={styles.logoIcon} width="28" height="28" viewBox="0 0 28 28" fill="none">
             <polygon
               points="14,2 25,8 25,20 14,26 3,20 3,8"
@@ -394,7 +399,7 @@ export default function App() {
             <circle cx="14" cy="14" r="4" fill="currentColor" />
           </svg>
           <span className={styles.logoText}>LynkOS</span>
-        </div>
+        </Link>
 
         {displayDevice && (
           <button
