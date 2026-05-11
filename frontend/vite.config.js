@@ -13,7 +13,9 @@ function httpToWsOrigin(httpUrl) {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const proxyTarget = (env.VITE_DEV_PROXY_TARGET || '').trim()
+  // .env 未設定・load 失敗時でも開発が動くよう既定を使う（Safari 等で /api が 5173 に残ると CORS 系エラーになりやすい）
+  const proxyTarget = (env.VITE_DEV_PROXY_TARGET || 'http://127.0.0.1:8000').trim()
+  const wsTarget = httpToWsOrigin(proxyTarget) || proxyTarget
 
   return {
     plugins: [react()],
@@ -21,21 +23,17 @@ export default defineConfig(({ mode }) => {
       port: Number(env.VITE_DEV_PORT) || 5173,
       strictPort: true,
       host: true,
-      ...(proxyTarget
-        ? {
-            proxy: {
-              '/api': {
-                target: proxyTarget,
-                changeOrigin: true,
-              },
-              '/ws': {
-                target: httpToWsOrigin(proxyTarget) || proxyTarget,
-                ws: true,
-                changeOrigin: true,
-              },
-            },
-          }
-        : {}),
+      proxy: {
+        '/api': {
+          target: proxyTarget,
+          changeOrigin: true,
+        },
+        '/ws': {
+          target: wsTarget,
+          ws: true,
+          changeOrigin: true,
+        },
+      },
     },
     build: {
       outDir: 'dist',

@@ -2,6 +2,8 @@ import mimetypes
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ── 環境フラグ ─────────────────────────────────
@@ -23,6 +25,15 @@ def _split_csv(name):
 
 
 ALLOWED_HOSTS = _split_csv('DJANGO_ALLOWED_HOSTS')
+if not ALLOWED_HOSTS:
+    if DEBUG:
+        # 未設定時は LAN IP（スマホ検証）や任意ホストを許可（本番では必ず DJANGO_ALLOWED_HOSTS を明示すること）
+        ALLOWED_HOSTS = ['*']
+    else:
+        raise ImproperlyConfigured(
+            'DJANGO_ALLOWED_HOSTS が空です。DEBUG=false のときは '
+            'カンマ区切りでホスト名を設定してください（例: DJANGO_ALLOWED_HOSTS=example.com）。'
+        )
 
 # Render / Railway 等のリバースプロキシ（HTTPS 判定）
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -72,6 +83,10 @@ MIDDLEWARE = [
 ]
 
 if _cors_origins:
+    MIDDLEWARE.insert(0, 'corsheaders.middleware.CorsMiddleware')
+elif DEBUG:
+    # 開発で VITE_BACKEND_ORIGIN によりフロント(例:5173)から API を直叩きするとき用（プロキシ経由なら不要）
+    CORS_ALLOW_ALL_ORIGINS = True
     MIDDLEWARE.insert(0, 'corsheaders.middleware.CorsMiddleware')
 
 ROOT_URLCONF = 'config.urls'

@@ -40,7 +40,7 @@ echo     ビルド完了
 
 rem -- 3. Django 起動 ──────────────────────────────────
 echo [2/2] Django を起動中...
-start "LynkOS - Django" cmd /k "cd /d %~dp0backend && set DJANGO_DEBUG=true&& set DJANGO_ALLOWED_HOSTS=*&& set DJANGO_SECRET_KEY=local-start-all&& call venv\Scripts\activate.bat && daphne -b 0.0.0.0 -p 8000 config.asgi:application"
+start "LynkOS - Django" cmd /k "cd /d %~dp0backend && set DJANGO_DEBUG=true&& set DJANGO_ALLOWED_HOSTS=*&& set DJANGO_SECRET_KEY=local-start-all&& call .venv\Scripts\activate.bat && daphne -b 0.0.0.0 -p 8000 config.asgi:application"
 
 echo     起動を待機中...
 :wait_django

@@ -1,11 +1,15 @@
 /**
  * API / WebSocket のベース URL。
  *
- * VITE_BACKEND_ORIGIN（末尾スラッシュなし）を主に使用。
- * - 開発: 未設定なら相対パス（Vite プロキシ）／設定時はそのオリジンへ直結
- * - 本番: 未設定なら window.location.origin（Django が同一ホストで SPA を配信）
+ * - VITE_BACKEND_ORIGIN（末尾スラッシュなし）: 本番・ステージングで最優先
+ * - 開発（import.meta.env.DEV）:
+ *   - VITE_DEV_USE_PROXY=true のとき: API_BASE は '' → `/api/...` を Vite がプロキシ
+ *   - それ以外（既定）: VITE_DEV_API_ORIGIN または http://127.0.0.1:8000 に直結（CORS は Django DEBUG 時に緩和）
  *
- * 本番の分割デプロイではビルド時に VITE_BACKEND_ORIGIN を必ず指定すること。
+ * スマホから LAN IP で叩く場合は .env.development で
+ * VITE_DEV_API_ORIGIN=http://192.168.x.x:8000 を指定。
+ *
+ * 本番の分割デプロイではビルド時に VITE_BACKEND_ORIGIN を指定すること。
  */
 
 const { protocol, hostname, port } = window.location
@@ -13,9 +17,20 @@ const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:'
 
 const configuredOrigin = String(import.meta.env.VITE_BACKEND_ORIGIN || '').replace(/\/$/, '')
 
+const devUseProxy =
+  String(import.meta.env.VITE_DEV_USE_PROXY || '').toLowerCase() === 'true' ||
+  import.meta.env.VITE_DEV_USE_PROXY === '1'
+
+const devApiOrigin = String(
+  import.meta.env.VITE_DEV_API_ORIGIN || 'http://127.0.0.1:8000'
+).replace(/\/$/, '')
+
 function apiBase() {
   if (configuredOrigin) return configuredOrigin
-  if (import.meta.env.DEV) return ''
+  if (import.meta.env.DEV) {
+    if (devUseProxy) return ''
+    return devApiOrigin
+  }
   return window.location.origin
 }
 
@@ -44,6 +59,8 @@ function sameOriginWsBase() {
 function wsBase() {
   if (import.meta.env.DEV) {
     if (configuredOrigin) return toWsOrigin(configuredOrigin)
+    // API と同じオリジンに WS（runserver の Channels）
+    if (API_BASE) return toWsOrigin(API_BASE)
     const p = port ? `:${port}` : ''
     return `${wsProtocol}//${hostname}${p}`
   }

@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { API_BASE, WS_BASE } from '../lib/serverUrl'
+import { MAX_DEVICE_ICON_CHARS } from '../lib/deviceDisplay'
 
-/** フォールバック用ポーリング（1 秒未満） */
-const POLL_MS = 800
+/** WebSocket 切断時のみ短い間隔で一覧を取りに行く */
+const POLL_FALLBACK_MS = 3500
+/** WS 接続中はサーバー側 TTL(45s) を踏まえた登録更新のみ（ターミナル・端末負荷を抑える） */
+const HEARTBEAT_MS = 22_000
 const PRESENCE_PATH = '/ws/presence/'
 
 function generateDeviceId() {
@@ -45,7 +48,7 @@ function getDefaultDeviceName() {
   return name
 }
 
-export default function useDeviceDiscovery(overrideName = null) {
+export default function useDeviceDiscovery(overrideName = null, profileRev = 0) {
   const [devices,    setDevices]    = useState([])
   const [myDevice,   setMyDevice]   = useState(null)
   const [fetchError, setFetchError] = useState(false)
@@ -55,22 +58,92 @@ export default function useDeviceDiscovery(overrideName = null) {
   const presenceWsRef = useRef(null)
   const presenceReconnectRef = useRef(null)
   const presenceBackoffRef = useRef(1500)
+  /** React 18 Strict Mode 二重マウントで古い WebSocket のコールバックを無効化 */
+  const presenceEffectGenRef = useRef(0)
 
   useEffect(() => {
+    const effectGen = ++presenceEffectGenRef.current
     const id       = generateDeviceId()
     myIdRef.current = id
     const platform = detectPlatform()
     const type     = detectDeviceType()
     const name     = overrideName ?? getDefaultDeviceName()
-    const me       = { deviceId: id, name, type, platform }
+    const readStoredIconRaw = () => {
+      try {
+        const s = localStorage.getItem('lynkos-device-icon')
+        if (typeof s !== 'string') return ''
+        return s.trim()
+      } catch {
+        return ''
+      }
+    }
+
+    const iconRaw = readStoredIconRaw()
+    const me = {
+      deviceId: id,
+      name,
+      type,
+      platform,
+      ...(iconRaw ? { icon: iconRaw } : {}),
+    }
     setMyDevice(me)
 
-    const register = () =>
-      fetch(`${API_BASE}/api/devices/`, {
+    const normalizeIncomingDevice = (incoming) => {
+      const deviceId = incoming.deviceId ?? incoming.id
+      if (!deviceId) return null
+      const row = {
+        deviceId,
+        name:     incoming.name ?? '不明なデバイス',
+        type:     incoming.type ?? 'unknown',
+        platform: incoming.platform ?? '',
+      }
+      if (incoming.icon) row.icon = incoming.icon
+      return row
+    }
+
+    const sendDeviceInfo = (ws) => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return
+      const raw = readStoredIconRaw()
+      const nm =
+        overrideName != null && String(overrideName).trim() !== ''
+          ? String(overrideName).trim()
+          : getDefaultDeviceName()
+      const payloadIcon =
+        raw && raw.length <= MAX_DEVICE_ICON_CHARS ? raw : ''
+      const device = {
+        deviceId: id,
+        name:     nm,
+        type,
+        platform,
+        ...(payloadIcon ? { icon: payloadIcon } : {}),
+      }
+      try {
+        ws.send(JSON.stringify({ type: 'device-info', device }))
+      } catch {
+        /*  */
+      }
+    }
+
+    const register = () => {
+      const raw = readStoredIconRaw()
+      const nm =
+        overrideName != null && String(overrideName).trim() !== ''
+          ? String(overrideName).trim()
+          : getDefaultDeviceName()
+      const payloadIcon =
+        raw && raw.length <= MAX_DEVICE_ICON_CHARS ? raw : ''
+      return fetch(`${API_BASE}/api/devices/`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(me),
+        body:    JSON.stringify({
+          deviceId: id,
+          name:     nm,
+          type,
+          platform,
+          ...(payloadIcon ? { icon: payloadIcon } : {}),
+        }),
       })
+    }
 
     const fetchDevices = () =>
       fetch(`${API_BASE}/api/devices/`)
@@ -86,8 +159,7 @@ export default function useDeviceDiscovery(overrideName = null) {
           setFetchError(true)
         })
 
-    /** 登録完了後に一覧取得（GET が POST より先に終わる取りこぼしを減らす） */
-    const tick = async () => {
+    const pollFull = async () => {
       if (document.hidden || pollBusyRef.current) return
       pollBusyRef.current = true
       try {
@@ -96,20 +168,51 @@ export default function useDeviceDiscovery(overrideName = null) {
         } catch {
           /* 登録失敗でも一覧は試す */
         }
+        sendDeviceInfo(presenceWsRef.current)
         await fetchDevices()
       } finally {
         pollBusyRef.current = false
       }
     }
 
+    /** WS が生きているときは TTL 維持の POST のみ（一覧は WS の devices-changed で更新） */
+    const heartbeatRegister = async () => {
+      if (document.hidden || pollBusyRef.current) return
+      pollBusyRef.current = true
+      try {
+        try {
+          await register()
+        } catch {
+          /*  */
+        }
+        sendDeviceInfo(presenceWsRef.current)
+      } finally {
+        pollBusyRef.current = false
+      }
+    }
+
+    const restartPolling = () => {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+      const wsUp = presenceWsRef.current?.readyState === WebSocket.OPEN
+      const delay = wsUp ? HEARTBEAT_MS : POLL_FALLBACK_MS
+      const runner = wsUp ? heartbeatRegister : pollFull
+      intervalRef.current = window.setInterval(runner, delay)
+    }
+
     const connectPresenceWs = () => {
+      if (effectGen !== presenceEffectGenRef.current) return
       if (presenceReconnectRef.current != null) {
         clearTimeout(presenceReconnectRef.current)
         presenceReconnectRef.current = null
       }
-      try {
-        presenceWsRef.current?.close()
-      } catch (_) { /*  */ }
+      const prev = presenceWsRef.current
+      if (prev) {
+        try {
+          prev.close()
+        } catch (_) { /*  */ }
+      }
+      presenceWsRef.current = null
       const url = `${WS_BASE}${PRESENCE_PATH}`
       let ws
       try {
@@ -124,10 +227,47 @@ export default function useDeviceDiscovery(overrideName = null) {
       presenceWsRef.current = ws
 
       ws.onopen = () => {
+        if (effectGen !== presenceEffectGenRef.current) {
+          try {
+            ws.close()
+          } catch (_) { /*  */ }
+          return
+        }
         presenceBackoffRef.current = 1500
+        restartPolling()
+        sendDeviceInfo(ws)
+        void fetchDevices()
       }
 
-      ws.onmessage = () => {
+      ws.onmessage = (ev) => {
+        if (effectGen !== presenceEffectGenRef.current) return
+        try {
+          const data = JSON.parse(ev.data)
+          if (
+            data?.type === 'device-info' &&
+            data.device &&
+            typeof data.device === 'object'
+          ) {
+            const row = normalizeIncomingDevice(data.device)
+            if (!row || row.deviceId === myIdRef.current) {
+              return
+            }
+            setDevices((prev) => {
+              const i = prev.findIndex((d) => d.deviceId === row.deviceId)
+              if (i === -1) {
+                return [...prev, row].filter(
+                  (d) => d.deviceId !== myIdRef.current
+                )
+              }
+              const next = [...prev]
+              next[i] = row
+              return next
+            })
+            return
+          }
+        } catch {
+          /* full refetch */
+        }
         void fetchDevices()
       }
 
@@ -138,7 +278,9 @@ export default function useDeviceDiscovery(overrideName = null) {
       }
 
       ws.onclose = () => {
-        presenceWsRef.current = null
+        if (presenceWsRef.current === ws) presenceWsRef.current = null
+        if (effectGen !== presenceEffectGenRef.current) return
+        restartPolling()
         presenceBackoffRef.current = Math.min(
           Math.round(presenceBackoffRef.current * 1.6),
           12000
@@ -150,12 +292,12 @@ export default function useDeviceDiscovery(overrideName = null) {
       }
     }
 
-    tick()
+    void pollFull()
     connectPresenceWs()
-    intervalRef.current = window.setInterval(tick, POLL_MS)
+    restartPolling()
 
     const onVisible = () => {
-      if (document.visibilityState === 'visible') void tick()
+      if (document.visibilityState === 'visible') void pollFull()
     }
     document.addEventListener('visibilitychange', onVisible)
 
@@ -170,19 +312,23 @@ export default function useDeviceDiscovery(overrideName = null) {
     window.addEventListener('beforeunload', onUnload)
 
     return () => {
+      presenceEffectGenRef.current += 1
       clearInterval(intervalRef.current)
       if (presenceReconnectRef.current != null) {
         clearTimeout(presenceReconnectRef.current)
         presenceReconnectRef.current = null
       }
-      try {
-        presenceWsRef.current?.close()
-      } catch (_) { /*  */ }
+      const w = presenceWsRef.current
       presenceWsRef.current = null
+      if (w && w.readyState === WebSocket.OPEN) {
+        try {
+          w.close()
+        } catch (_) { /*  */ }
+      }
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('beforeunload', onUnload)
     }
-  }, [overrideName])
+  }, [overrideName, profileRev])
 
   return { devices, myDevice, fetchError }
 }

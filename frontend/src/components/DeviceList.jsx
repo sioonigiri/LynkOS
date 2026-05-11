@@ -1,7 +1,21 @@
 import styles from './DeviceList.module.css'
-import { getDeviceEmoji, getDeviceLabel } from '../lib/deviceDisplay'
+import { getDeviceIconVisual } from '../lib/deviceDisplay'
 
-export default function DeviceList({ devices, selected, onSelect, error }) {
+function DeviceBubbleIcon({ device }) {
+  const v = getDeviceIconVisual(device)
+  if (v.kind === 'url') {
+    return <img src={v.href} alt="" className={styles.iconImg} />
+  }
+  return <span className={styles.icon}>{v.text}</span>
+}
+
+export default function DeviceList({
+  devices,
+  onSelect,
+  error,
+  disabled = false,
+  flashDeviceId = null,
+}) {
   // サーバー接続エラー
   if (error) {
     return (
@@ -11,8 +25,7 @@ export default function DeviceList({ devices, selected, onSelect, error }) {
             <span className={styles.radarIcon}>⚠️</span>
           </div>
         </div>
-        <p className={styles.emptyText}>接続できませんでした</p>
-        <p className={styles.emptyHint}>Wi-Fi や電波を確認してください</p>
+        <p className={styles.emptyText}>オフライン</p>
       </div>
     )
   }
@@ -29,31 +42,39 @@ export default function DeviceList({ devices, selected, onSelect, error }) {
             <span className={styles.radarIcon}>📡</span>
           </div>
         </div>
-        <p className={styles.emptyText}>デバイスを検索中...</p>
-        <p className={styles.emptyHint}>同じ Wi-Fi に接続された端末が表示されます</p>
+        <p className={styles.emptyText}>検索中</p>
       </div>
     )
   }
 
   return (
-    <div className={styles.grid}>
-      {devices.map((device, i) => (
-        <button
-          key={device.deviceId}
-          className={`${styles.bubble} ${selected?.deviceId === device.deviceId ? styles.selected : ''}`}
-          onClick={() => onSelect(device)}
-          style={{ animationDelay: `${i * 0.06}s` }}
-        >
-          <div className={styles.iconWrap}>
-            {selected?.deviceId === device.deviceId && (
-              <span className={styles.ripple} />
-            )}
-            <span className={styles.icon}>{getDeviceEmoji(device)}</span>
-          </div>
-          <span className={styles.name}>{device.name}</span>
-          <span className={styles.type}>{getDeviceLabel(device)}</span>
-        </button>
-      ))}
+    <div
+      className={`${styles.grid} ${disabled ? styles.gridDisabled : ''}`}
+      aria-busy={disabled || undefined}
+    >
+      {devices.map((device, i) => {
+        const vis = getDeviceIconVisual(device)
+        const isPhotoIcon = vis.kind === 'url'
+        return (
+          <button
+            key={device.deviceId}
+            type="button"
+            className={`${styles.bubble} ${
+              flashDeviceId === device.deviceId ? styles.flash : ''
+            }`}
+            onClick={() => !disabled && onSelect(device)}
+            disabled={disabled}
+            style={{ animationDelay: `${i * 0.06}s` }}
+          >
+            <div
+              className={`${styles.iconWrap} ${isPhotoIcon ? styles.iconWrapPhoto : ''}`}
+            >
+              <DeviceBubbleIcon device={device} />
+            </div>
+            <span className={styles.name}>{device.name}</span>
+          </button>
+        )
+      })}
     </div>
   )
 }

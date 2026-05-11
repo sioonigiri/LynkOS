@@ -7,7 +7,7 @@
 export const LONG_ABSENCE_MS = 30 * 60 * 1000
 
 const END_KEY = 'lynkos-session-ended-at'
-const KEEP_KEYS = new Set(['lynkos-device-id', 'lynkos-device-name'])
+const KEEP_KEYS = new Set(['lynkos-device-id', 'lynkos-device-name', 'lynkos-device-icon'])
 
 export function recordSessionEnd() {
   try {

@@ -1,18 +1,54 @@
 import styles from './PairingConfirmDialog.module.css'
 
 /**
- * AirDrop 風の最小 UI: 相手名・セッション ID・接続する / キャンセル
+ * 送信側: 接続リクエストを送り、相手の許可待ち
+ * 受信側: 接続リクエストの許可／拒否（concept.md・セッションID照合なし）
  */
+export function ConnectionIncomingDialog({
+  senderName,
+  senderType,
+  onAccept,
+  onReject,
+}) {
+  return (
+    <div className={styles.overlay} role="presentation">
+      <div
+        className={styles.sheet}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-labelledby="conn-in-title"
+      >
+        <p id="conn-in-title" className={styles.visuallyHidden}>
+          接続
+        </p>
+        <div className={styles.senderBubble}>
+          <span className={styles.senderIcon} aria-hidden>
+            {senderType === 'desktop' ? '🖥' : '📱'}
+          </span>
+        </div>
+        <p className={styles.peerName}>{senderName}</p>
+        <div className={styles.actions}>
+          <button type="button" className={styles.btnRejectSheet} onClick={onReject} aria-label="拒否">
+            ✕
+          </button>
+          <button type="button" className={styles.btnPrimary} onClick={onAccept} aria-label="許可">
+            ✓
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function PairingConfirmDialog({
   peerName,
-  pairCode,
-  pairingConfirmed,
+  outgoingAwaitingAccept,
   connectionFailed,
-  onConnect,
+  onSendRequest,
   onCancel,
   onReconnect,
 }) {
-  const waitingAfterConnect = pairingConfirmed && !connectionFailed
+  const waiting = outgoingAwaitingAccept && !connectionFailed
 
   return (
     <div className={styles.overlay} role="presentation">
@@ -21,39 +57,30 @@ export default function PairingConfirmDialog({
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-labelledby="pair-peer"
-        aria-describedby="pair-code"
       >
         <p id="pair-peer" className={styles.peerName}>
           {peerName}
         </p>
-        <p id="pair-code" className={styles.code} aria-live="polite">
-          {pairCode || '…'}
-        </p>
 
-        {waitingAfterConnect && (
-          <p className={styles.subtle}>接続を確立しています</p>
+        {waiting ? (
+          <p className={styles.subtle} aria-hidden>
+            …
+          </p>
+        ) : (
+          <p className={styles.visuallyHidden}>接続</p>
         )}
 
-        <div
-          className={
-            waitingAfterConnect ? `${styles.actions} ${styles.actionsSingle}` : styles.actions
-          }
-        >
-          <button type="button" className={styles.btnSecondary} onClick={onCancel}>
-            キャンセル
+        <div className={waiting ? `${styles.actions} ${styles.actionsSingle}` : styles.actions}>
+          <button type="button" className={styles.btnSecondary} onClick={onCancel} aria-label="キャンセル">
+            ×
           </button>
           {connectionFailed ? (
-            <button type="button" className={styles.btnPrimary} onClick={onReconnect}>
-              接続する
+            <button type="button" className={styles.btnPrimary} onClick={onReconnect} aria-label="再接続">
+              ↻
             </button>
-          ) : !pairingConfirmed ? (
-            <button
-              type="button"
-              className={styles.btnPrimary}
-              onClick={onConnect}
-              disabled={!pairCode}
-            >
-              接続する
+          ) : !waiting ? (
+            <button type="button" className={styles.btnPrimary} onClick={onSendRequest} aria-label="送信">
+              →
             </button>
           ) : null}
         </div>

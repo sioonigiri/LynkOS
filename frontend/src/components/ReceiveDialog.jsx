@@ -1,68 +1,68 @@
 import styles from './ReceiveDialog.module.css'
+import { getDeviceIconVisual, fileEntryVisual } from '../lib/deviceDisplay'
 
-function formatBytes(bytes) {
-  if (bytes < 1024)       return `${bytes} B`
-  if (bytes < 1024 ** 2)  return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / 1024 ** 2).toFixed(1)} MB`
-}
-
-function totalSize(files) {
-  return files.reduce((s, f) => s + f.size, 0)
+function senderDeviceFromRequest(request) {
+  const t = request.senderType === 'mobile' ? 'mobile' : 'desktop'
+  return {
+    type: t,
+    platform: '',
+    icon: request.senderIcon ?? request.device?.icon,
+  }
 }
 
 export default function ReceiveDialog({ request, onAccept, onReject }) {
   if (!request) return null
 
   const isMultiple = request.files.length > 1
+  const senderVis = getDeviceIconVisual(senderDeviceFromRequest(request))
 
   return (
     <div className={styles.overlay} onClick={onReject}>
-      <div className={styles.sheet} onClick={(e) => e.stopPropagation()}>
+      <div className={styles.sheet} onClick={(e) => e.stopPropagation()} role="dialog" aria-label="受信">
 
-        {/* 送信元アイコン */}
         <div className={styles.senderBubble}>
-          <span className={styles.senderIcon}>
-            {request.senderType === 'desktop' ? '🖥' : '📱'}
-          </span>
+          {senderVis.kind === 'url' ? (
+            <img src={senderVis.href} alt="" className={styles.senderIconImg} />
+          ) : (
+            <span className={styles.senderIcon}>{senderVis.text}</span>
+          )}
         </div>
 
-        {/* タイトル */}
-        <h2 className={styles.title}>ファイルを受け取りますか？</h2>
-        <p className={styles.senderName}>
-          <strong>{request.senderName}</strong> から
-        </p>
+        <p className={styles.senderNameOnly}>{request.senderName}</p>
 
         {request.inboundQueuedBehind > 0 && (
-          <p className={styles.queueHint} role="status">
-            ほか {request.inboundQueuedBehind} 件の受信リクエストが順番待ちです（同時受信しません）。
+          <p className={styles.queueHint} role="status" aria-label={`順番待ち ${request.inboundQueuedBehind}`}>
+            +{request.inboundQueuedBehind}
           </p>
         )}
 
-        {/* ファイル一覧 */}
         <div className={styles.fileListWrap}>
           <ul className={styles.fileList}>
-            {request.files.map((f, i) => (
-              <li key={i} className={styles.fileItem}>
-                <span className={styles.fileItemIcon}>📄</span>
-                <span className={styles.fileItemName}>{f.name}</span>
-                <span className={styles.fileItemSize}>{formatBytes(f.size)}</span>
-              </li>
-            ))}
+            {request.files.map((f, i) => {
+              const fv = fileEntryVisual(f.name, f.type)
+              return (
+                <li key={i} className={styles.fileItem}>
+                  <span className={styles.fileItemIcon} aria-hidden>
+                    {fv.isImage ? '🖼' : fv.icon}
+                  </span>
+                  <span className={styles.fileItemName}>{f.name}</span>
+                </li>
+              )
+            })}
           </ul>
           {isMultiple && (
-            <p className={styles.totalSize}>
-              合計 {request.files.length} 件・{formatBytes(totalSize(request.files))}
+            <p className={styles.fileCountFoot} aria-hidden>
+              {request.files.length}
             </p>
           )}
         </div>
 
-        {/* アクション */}
         <div className={styles.actions}>
-          <button className={styles.btnReject} onClick={onReject}>
-            断る
+          <button type="button" className={styles.btnReject} onClick={onReject} aria-label="拒否">
+            ✕
           </button>
-          <button className={styles.btnAccept} onClick={onAccept}>
-            受け取る
+          <button type="button" className={styles.btnAccept} onClick={onAccept} aria-label="受信">
+            ✓
           </button>
         </div>
 

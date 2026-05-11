@@ -1,24 +1,29 @@
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useMemo } from 'react'
 import {
   isAppleTouchDevice,
   MB,
   IOS_SEND_NOTICE_TITLE,
   iosSendNoticeBody,
   iosSendConfirm300Body,
-  IOS_SEND_STRONG_ALERT,
-  iosSendStrongConfirmBody,
   formatMb,
 } from '../lib/iosFileSizePolicy'
+import { fileEntryVisual } from '../lib/deviceDisplay'
 import styles from './SendPanel.module.css'
-
-const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 
 const NOTICE_DISMISS_MS = 9000
 
-export default function SendPanel({ onSend, disabled }) {
+const FILE_INPUT_ID = 'lynkos-file-input'
+
+/**
+ * @param {object} props
+ * @param {(file: File) => void} props.onFileChosen
+ * @param {File | null} [props.previewFile]
+ * @param {boolean} props.disabled
+ * @param {boolean} [props.allowPick=true]
+ */
+export default function SendPanel({ onFileChosen, disabled, allowPick = true, previewFile = null }) {
   const inputRef = useRef(null)
   const [dragging, setDragging] = useState(false)
-  /** 100MB〜299MB: 非ブロック注意バナー */
   const [iosNoticeMb, setIosNoticeMb] = useState(null)
 
   useEffect(() => {
@@ -27,44 +32,60 @@ export default function SendPanel({ onSend, disabled }) {
     return () => clearTimeout(t)
   }, [iosNoticeMb])
 
-  const handleFiles = (files) => {
-    if (files.length === 0) return
-    const list = Array.from(files)
+  const previewUrl = useMemo(() => {
+    if (!previewFile || !previewFile.type.startsWith('image/')) return null
+    return URL.createObjectURL(previewFile)
+  }, [previewFile])
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+    }
+  }, [previewUrl])
+
+  const combinedDisabled = disabled || !allowPick
+  const hasPreview = Boolean(previewFile)
+  const isImage = Boolean(previewFile?.type.startsWith('image/'))
+
+  const fileViz = previewFile ? fileEntryVisual(previewFile.name, previewFile.type) : null
+
+  const runChoose = (file) => {
+    if (!file) return
 
     if (!isAppleTouchDevice()) {
-      onSend(list)
+      onFileChosen(file)
       return
     }
 
-    const maxSize = Math.max(...list.map((f) => f.size))
-    const mb = formatMb(maxSize)
+    const mb = formatMb(file.size)
 
-    if (maxSize >= 500 * MB) {
-      window.alert(IOS_SEND_STRONG_ALERT)
-      if (!window.confirm(iosSendStrongConfirmBody(mb))) return
-      onSend(list)
-      return
-    }
-
-    if (maxSize >= 300 * MB) {
+    if (file.size >= 300 * MB) {
       if (!window.confirm(iosSendConfirm300Body(mb))) return
-      onSend(list)
+      onFileChosen(file)
       return
     }
 
-    if (maxSize >= 100 * MB) {
+    if (file.size >= 100 * MB) {
       setIosNoticeMb(Number(mb))
     }
 
-    onSend(list)
+    onFileChosen(file)
+  }
+
+  const handleFiles = (fileList) => {
+    const file = fileList?.[0]
+    runChoose(file)
   }
 
   const handleDrop = (e) => {
     e.preventDefault()
     setDragging(false)
-    if (disabled) return
+    if (combinedDisabled) return
     handleFiles(e.dataTransfer.files)
   }
+
+  const waitLabel =
+    combinedDisabled && allowPick ? '待機' : !allowPick ? '待機' : null
 
   return (
     <div className={styles.outer}>
@@ -85,51 +106,72 @@ export default function SendPanel({ onSend, disabled }) {
         </div>
       )}
 
-      <div
+      <label
         className={[
           styles.panel,
+          hasPreview ? styles.panelFilled : '',
           dragging ? styles.dragging : '',
-          disabled ? styles.disabled : '',
+          combinedDisabled ? styles.disabled : '',
         ].join(' ')}
-        onDragOver={(e) => { e.preventDefault(); if (!disabled) setDragging(true) }}
+        htmlFor={combinedDisabled ? undefined : FILE_INPUT_ID}
+        tabIndex={combinedDisabled ? -1 : 0}
+        onDragOver={(e) => {
+          e.preventDefault()
+          if (!combinedDisabled) setDragging(true)
+        }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
-        onClick={() => !disabled && inputRef.current?.click()}
-        role="button"
-        tabIndex={disabled ? -1 : 0}
-        onKeyDown={(e) => !disabled && e.key === 'Enter' && inputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (combinedDisabled) return
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            inputRef.current?.click()
+          }
+        }}
       >
         <input
           ref={inputRef}
+          id={FILE_INPUT_ID}
           type="file"
-          multiple
-          className={styles.hidden}
-          onChange={(e) => handleFiles(e.target.files)}
-          disabled={disabled}
+          className={styles.visuallyHidden}
+          onChange={(e) => {
+            handleFiles(e.target.files)
+            e.target.value = ''
+          }}
+          disabled={combinedDisabled}
+          tabIndex={-1}
         />
 
-        <div className={styles.iconArea}>
-          {disabled ? (
+        {waitLabel && (
+          <div className={styles.centerStack}>
             <span className={styles.spinnerIcon}>⏳</span>
-          ) : dragging ? (
-            <span className={styles.dropIcon}>📂</span>
-          ) : (
-            <span className={styles.dropIcon}>📤</span>
-          )}
-        </div>
-
-        <p className={styles.mainText}>
-          {disabled
-            ? '接続を確立中...'
-            : dragging
-              ? 'ここにドロップ'
-              : 'タップしてファイルを選択'}
-        </p>
-
-        {!disabled && !dragging && !isMobile && (
-          <p className={styles.subText}>または、ファイルをここにドラッグ</p>
+            <p className={styles.waitText}>{waitLabel}</p>
+          </div>
         )}
-      </div>
+
+        {!waitLabel && !hasPreview && (
+          <div className={styles.placeholder}>画像・ファイルを選択</div>
+        )}
+
+        {!waitLabel && hasPreview && isImage && previewUrl && (
+          <div className={styles.previewContainer}>
+            <img src={previewUrl} alt="" className={styles.previewImage} />
+            {dragging && <div className={styles.dragOverlay} aria-hidden />}
+          </div>
+        )}
+
+        {!waitLabel && hasPreview && !isImage && previewFile && (
+          <div className={styles.previewContainer}>
+            <div className={styles.filePreview}>
+              <span className={styles.fileIcon} aria-hidden>
+                {fileViz?.icon ?? '📄'}
+              </span>
+              <span className={styles.fileName}>{previewFile.name}</span>
+            </div>
+            {dragging && <div className={styles.dragOverlay} aria-hidden />}
+          </div>
+        )}
+      </label>
     </div>
   )
 }

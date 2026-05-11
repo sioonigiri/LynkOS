@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import { WS_BASE } from '../lib/serverUrl'
 import { getIceServers } from '../lib/webrtcIceServers'
 import { logError, logConnectionFailure } from '../lib/logger'
@@ -7,6 +7,7 @@ import {
   rxAppendChunk,
   rxDeleteTransfer,
 } from '../lib/receiveStorage'
+import { iconForNetworkPayload } from '../lib/deviceDisplay'
 
 const _dev = import.meta.env.DEV
 const devLog = (...a) => {
@@ -39,6 +40,10 @@ const MAX_RECONNECT         = 24
 const CONNECT_WATCHDOG_MS   = 9000
 /** SDP 確定後 ICE/DC が進まないときのフォールバック */
 const POST_SDP_ICE_STALL_MS = 6500
+/** setRemoteDescription 直後に届く ICE を拾うための追い flush（1 回） */
+const POST_REMOTE_FLUSH_DELAY_MS = 40
+/** 送信側: 受信完了 ACK を待つ上限（受信側 IDB キューが空になるまで切断しない） */
+const FILE_RECV_ACK_TIMEOUT_MS = 300_000
 /** DataChannel のみのオファー（メディアネゴ不要で軽量化） */
 const OFFER_OPTIONS = {
   offerToReceiveAudio: false,
@@ -105,9 +110,7 @@ function logIceSnapshot(sessionEpoch, pc, tag) {
 
 export default function useWebRTC({
   targetDevice,
-  /** 自端末で「接続する」を押したか（WebSocket で相手に通知） */
-  localPairingConfirmed,
-  /** 新しい接続試行のたびに呼ぶ（ローカル pairing をリセット） */
+  /** 新しい接続試行のたびに呼ぶ */
   onConnectionReset,
   onProgress,
   onComplete,
@@ -122,14 +125,8 @@ export default function useWebRTC({
   const [transportReady, setTransportReady] = useState(false)
   /** UI 用: 接続確立までの内訳 */
   const [linkPhase, setLinkPhase] = useState('idle')
-  /** 相手も「接続する」を押した（シグナリング WS 経由で受信） */
-  const [peerPairingConfirmed, setPeerPairingConfirmed] = useState(false)
   /** ユーザー向け接続エラー（再接続上限・シグナリング失敗など） */
   const [connectionUserError, setConnectionUserError] = useState(null)
-  const localPairingConfirmedRef  = useRef(false)
-  const peerPairingConfirmedRef   = useRef(false)
-
-  localPairingConfirmedRef.current = !!localPairingConfirmed
 
   const pcRef               = useRef(null)
   const wsRef               = useRef(null)
@@ -161,17 +158,17 @@ export default function useWebRTC({
   const handleSyncDisconnectRef = useRef((/** @type {boolean} */ _fromRemote) => {})
   /** シグナリング／P2P セッション世代。fullReset のたびに進め、古い非同期ハンドラを無効化 */
   const signalingEpochRef = useRef(0)
-
-  /** 相手がルームに入る前に送った pair-confirmed が消失するため、peer-joined 等で再送する */
-  const flushPairConfirmedRef = useRef(() => {})
-  flushPairConfirmedRef.current = () => {
-    const w = wsRef.current
-    if (w?.readyState === WebSocket.OPEN && localPairingConfirmedRef.current) {
-      try {
-        w.send(JSON.stringify({ type: 'pair-confirmed' }))
-      } catch (_) { /*  */ }
-    }
-  }
+  /** 許可後にのみ true — RTCPeerConnection を生成済み */
+  const webrtcNegotiationStartedRef = useRef(false)
+  const pendingOfferRef = useRef(null)
+  /** connect() の二重入防止（複数 PC・競合 DC close の抑止） */
+  const isConnectingRef = useRef(false)
+  /** targetDevice の接続セッション世代（Strict Mode の二重 effect クリーンアップで誤 cleanup しない） */
+  const linkSessionGenerationRef = useRef(0)
+  /** transportReady 状態の同期（peer-left 等の非同期で state クロージャが古くなるのを防ぐ） */
+  const transportReadyRef = useRef(false)
+  /** 送信側: file-received-ack 待ち（onComplete / 切断を受信側のキュー消化後に合わせる） */
+  const fileAckWaitersRef = useRef(new Map())
 
   const clearRecoverTimer = () => {
     if (recoverTimerRef.current != null) {
@@ -189,6 +186,7 @@ export default function useWebRTC({
   const onConnectionResetRef = useRef(onConnectionReset)
   const refreshTransportRef  = useRef(() => {})
 
+  useEffect(() => { transportReadyRef.current = transportReady }, [transportReady])
   useEffect(() => { targetRef.current  = targetDevice },  [targetDevice])
   useEffect(() => { onReceiveRef.current = onReceive },   [onReceive])
   useEffect(() => { onReceiveRequestRef.current = onReceiveRequest }, [onReceiveRequest])
@@ -196,33 +194,17 @@ export default function useWebRTC({
   useEffect(() => { onFailedRef.current  = onFailed },    [onFailed])
   useEffect(() => { onConnectionResetRef.current = onConnectionReset }, [onConnectionReset])
 
-  useEffect(() => {
-    if (!localPairingConfirmed) return
-    flushPairConfirmedRef.current()
-    const t = window.setTimeout(() => flushPairConfirmedRef.current(), 250)
-    return () => clearTimeout(t)
-  }, [localPairingConfirmed])
-
-  /** 転送準備までの間、pair-confirmed の取りこぼしを減らす（特に iOS） */
-  useEffect(() => {
-    if (!localPairingConfirmed || transportReady) return
-    const id = window.setInterval(() => flushPairConfirmedRef.current(), 2500)
-    return () => clearInterval(id)
-  }, [localPairingConfirmed, transportReady])
-
   const prevConnectionStateRef = useRef(null)
   useEffect(() => {
     const prev = prevConnectionStateRef.current
     prevConnectionStateRef.current = connectionState
-    // connecting への遷移は再接続のたびに起きるだけなので、ここでは外さない（誤って peer 確認を消さない）
     if (
       prev === 'connected' &&
       (connectionState === 'disconnected' ||
         connectionState === 'failed' ||
         connectionState === 'reconnecting')
     ) {
-      peerPairingConfirmedRef.current = false
-      setPeerPairingConfirmed(false)
+      /* 切断時 UI リセット用 */
     }
   }, [connectionState])
 
@@ -236,6 +218,14 @@ export default function useWebRTC({
     const handleOpen = () => {
       if (channelRef.current !== ch) return
       devLog('[DC] open')
+      clearRecoverTimer()
+      clearTimeout(connectWatchdogRef.current)
+      connectWatchdogRef.current = null
+      if (postSdpIceTimerRef.current != null) {
+        clearTimeout(postSdpIceTimerRef.current)
+        postSdpIceTimerRef.current = null
+      }
+      reconnectCountRef.current = 0
       refreshTransportRef.current?.()
     }
 
@@ -248,6 +238,11 @@ export default function useWebRTC({
     ch.onclose = () => {
       if (channelRef.current !== ch) return
       devLog('[DC] closed')
+      for (const [id, w] of [...fileAckWaitersRef.current.entries()]) {
+        fileAckWaitersRef.current.delete(id)
+        clearTimeout(w.t)
+        w.reject(new Error('dc-closed'))
+      }
       try {
         pendingInboundResolve?.(false)
       } catch (_) { /*  */ }
@@ -271,8 +266,6 @@ export default function useWebRTC({
         connectParamsRef.current
       setConnectionState('disconnected')
       if (!allowReconnect) {
-        peerPairingConfirmedRef.current = false
-        setPeerPairingConfirmed(false)
         onConnectionResetRef.current?.()
       }
       if (allowReconnect) {
@@ -331,13 +324,18 @@ export default function useWebRTC({
       ;(async () => {
         try {
           const queuedBehind = fileRequestQueue.length
-          const cb = onReceiveRequestRef.current
-          const accepted = cb
-            ? await new Promise((resolve) => {
-                pendingInboundResolve = resolve
-                cb({ ...msg, resolve, inboundQueuedBehind: queuedBehind })
-              })
-            : false
+          let accepted = false
+          if (msg.signalingPreApproved === true) {
+            accepted = true
+          } else {
+            const cb = onReceiveRequestRef.current
+            accepted = cb
+              ? await new Promise((resolve) => {
+                  pendingInboundResolve = resolve
+                  cb({ ...msg, resolve, inboundQueuedBehind: queuedBehind })
+                })
+              : false
+          }
           pendingInboundResolve = null
           if (!ch || ch.readyState !== 'open') {
             inboundPipelineLocked = false
@@ -410,6 +408,16 @@ export default function useWebRTC({
         let msg
         try { msg = JSON.parse(data) } catch { return }
 
+        if (msg.type === 'file-received-ack') {
+          const w = fileAckWaitersRef.current.get(msg.id)
+          if (w) {
+            fileAckWaitersRef.current.delete(msg.id)
+            clearTimeout(w.t)
+            w.resolve()
+          }
+          return
+        }
+
         if (msg.type === 'file-request') {
           // 受信中でも必ずキューへ（reject しない）。processQueue が順に処理する。
           fileRequestQueue.push(msg)
@@ -431,6 +439,7 @@ export default function useWebRTC({
             progress: 0,
             name: msg.name,
             size: msg.size,
+            mimeType: msg.mime,
             direction: 'receiving',
           })
 
@@ -453,6 +462,7 @@ export default function useWebRTC({
 
         if (msg.type === 'file-end' && meta) {
           const saved = { ...meta }
+          let recvOk = false
           try {
             if (receiveMode === 'fs' && diskWritable) {
               await diskWritable.close()
@@ -475,8 +485,10 @@ export default function useWebRTC({
                 size:       saved.size,
                 storageKey: saved.id,
                 chunkCount: n,
+                mimeType:   saved.mime,
               })
             }
+            recvOk = true
           } catch (err) {
             logError('DC 受信完了処理失敗', err)
             onProgress?.({ id: saved.id, progress: 0, status: 'error' })
@@ -487,6 +499,12 @@ export default function useWebRTC({
             diskWritable = null
           } finally {
             transferBusyRef.current = false
+          }
+
+          if (recvOk && ch.readyState === 'open') {
+            try {
+              ch.send(JSON.stringify({ type: 'file-received-ack', id: saved.id }))
+            } catch (_) { /*  */ }
           }
 
           meta = null
@@ -520,7 +538,12 @@ export default function useWebRTC({
   // ──────────────────────────────────────────────
   // fullReset: トランスポート完全破棄（冪等・複数回呼んでも安全）
   // ──────────────────────────────────────────────
-  const fullReset = useCallback(() => {
+  const fullReset = useCallback((opts = {}) => {
+    const force = opts.force === true
+    if (!force) {
+      const pc = pcRef.current
+      if (pc && pc.connectionState === 'connected') return
+    }
     clearTimeout(reconnectTimerRef.current)
     reconnectTimerRef.current = null
     clearTimeout(connectWatchdogRef.current)
@@ -543,6 +566,12 @@ export default function useWebRTC({
       pcDisconnectedTimerRef.current = null
     }
 
+    for (const [, w] of [...fileAckWaitersRef.current.entries()]) {
+      clearTimeout(w.t)
+      w.reject(new Error('dc-closed'))
+    }
+    fileAckWaitersRef.current.clear()
+
     const ch = channelRef.current
     const pc = pcRef.current
     const ws = wsRef.current
@@ -558,6 +587,8 @@ export default function useWebRTC({
     sendChainRef.current = Promise.resolve()
     refreshTransportRef.current = () => {}
     setTransportReady(false)
+    webrtcNegotiationStartedRef.current = false
+    pendingOfferRef.current = null
     // 古い WS メッセージ・ICE コールバックを無効化（await 越しの stale 処理防止）
     signalingEpochRef.current += 1
   }, [])
@@ -566,10 +597,9 @@ export default function useWebRTC({
   // cleanup: fullReset + ルーム情報破棄（冪等）
   // ──────────────────────────────────────────────
   const cleanup = useCallback((silent = false) => {
-    fullReset()
+    isConnectingRef.current = false
+    fullReset({ force: true })
     connectParamsRef.current = null
-    peerPairingConfirmedRef.current = false
-    setPeerPairingConfirmed(false)
     if (!silent) {
       setConnectionState('disconnected')
       setLinkPhase('idle')
@@ -593,7 +623,8 @@ export default function useWebRTC({
       } catch (_) { /*  */ }
     }
 
-    fullReset()
+    isConnectingRef.current = false
+    fullReset({ force: true })
 
     suppressAutoReconnectRef.current = false
 
@@ -621,6 +652,8 @@ export default function useWebRTC({
       if (!connectParamsRef.current || !targetRef.current) return
       if (transferBusyRef.current || inboundReceiveBusyRef.current) return
       if (channelRef.current?.readyState === 'open') return
+      const rp = pcRef.current
+      if (rp && rp.connectionState === 'connected') return
       if (reconnectCountRef.current >= MAX_RECONNECT) {
         setConnectionState('failed')
         const msg =
@@ -633,9 +666,10 @@ export default function useWebRTC({
       reconnectCountRef.current += 1
       devLog(`[reconnect] ${reconnectCountRef.current}/${MAX_RECONNECT}`)
       clearRecoverTimer()
+      isConnectingRef.current = false
       const { room, myId, targetId } = connectParamsRef.current
       // 待機中に残った WS/PC を捨ててから新セッションへ（connect 先頭でも fullReset するが冪等）
-      fullReset()
+      fullReset({ force: true })
       connectRef.current?.(room, myId, targetId)
     }, RECONNECT_DEBOUNCE_MS)
   }, [fullReset])
@@ -666,8 +700,7 @@ export default function useWebRTC({
         const p2pUp =
           cs === 'connected' && (ice === 'connected' || ice === 'completed')
         if (p2pUp) {
-          setConnectionState('reconnecting')
-          scheduleReconnect()
+          refreshTransportRef.current?.()
           return
         }
         if (
@@ -721,8 +754,27 @@ export default function useWebRTC({
   // 接続開始
   // ──────────────────────────────────────────────
   const connect = useCallback((room, myId, targetId) => {
-    // 再接続・初回とも必ず fullReset（冪等）→ 新規 RTCPeerConnection のみ使用
-    fullReset()
+    if (isConnectingRef.current) {
+      devWarn('[connect] skip: already connecting')
+      return
+    }
+    if (
+      pcRef.current &&
+      pcRef.current.connectionState === 'connected' &&
+      channelRef.current?.readyState === 'open'
+    ) {
+      devLog('[connect] skip: transport already ready')
+      return
+    }
+
+    isConnectingRef.current = true
+    try {
+      fullReset({ force: true })
+    } catch (e) {
+      isConnectingRef.current = false
+      throw e
+    }
+
     const sessionEpoch = signalingEpochRef.current
     const linkT0 = typeof performance !== 'undefined' ? performance.now() : 0
     const linkStep = (label) => {
@@ -748,183 +800,277 @@ export default function useWebRTC({
     const wsUrl = `${WS_BASE}/ws/signal/${encodeURIComponent(room)}/`
     devLog(`[WS] 接続 → ${wsUrl}  polite=${politeRef.current}`)
 
+    const runDelayedIceFlush = () => {
+      window.setTimeout(() => {
+        const live = pcRef.current
+        if (signalingEpochRef.current !== sessionEpoch || !live) return
+        void flushCandidates(live)
+      }, POST_REMOTE_FLUSH_DELAY_MS)
+    }
+
     const ws = new WebSocket(wsUrl)
     wsRef.current = ws
 
-    const pc = new RTCPeerConnection({
-      iceServers:         getIceServers(),
-      iceTransportPolicy: 'all',
-      // 事前プールは端末組み合わせによっては trickle と相性が悪く ICE が止まることがあるため 0 に固定
-      iceCandidatePoolSize: 0,
-    })
-    pcRef.current = pc
-    linkStep('RTCPeerConnection + WebSocket 生成')
+    const beginPeerConnection = () => {
+      if (webrtcNegotiationStartedRef.current) return
+      if (signalingEpochRef.current !== sessionEpoch) return
+      if (pcRef.current != null) {
+        devWarn('[beginPeerConnection] skip: RTCPeerConnection already exists')
+        return
+      }
+      webrtcNegotiationStartedRef.current = true
+      linkStep('RTCPeerConnection 生成（シグナリング許可済み）')
 
-    let firstLocalIceSent = false
-    const refreshTransport = () => {
-      if (signalingEpochRef.current !== sessionEpoch || pcRef.current !== pc) return
-      const ch = channelRef.current
-      if (!ch || ch.readyState !== 'open') {
-        setTransportReady(false)
-        return
+      const pc = new RTCPeerConnection({
+        iceServers:         getIceServers(),
+        iceTransportPolicy: 'all',
+        /** 0 だと offer/answer 確定前にホスト候補が SDP に載らず、trickle 競合で ICE が進まない端末がある */
+        iceCandidatePoolSize: 10,
+      })
+      pcRef.current = pc
+
+      let firstLocalIceSent = false
+      const refreshTransport = () => {
+        if (signalingEpochRef.current !== sessionEpoch || pcRef.current !== pc) return
+        const ch = channelRef.current
+        if (!ch || ch.readyState !== 'open') {
+          setTransportReady(false)
+          return
+        }
+        if (ch.peerConnection != null && ch.peerConnection !== pc) {
+          setTransportReady(false)
+          return
+        }
+        const ice = pc.iceConnectionState
+        const iceOk = ice === 'connected' || ice === 'completed'
+        const pcs = pc.connectionState
+        const pcOk = pcs === 'connected' || (pcs === 'connecting' && iceOk)
+        const ok = iceOk && pcOk
+        if (ok) {
+          clearRecoverTimer()
+          clearTimeout(connectWatchdogRef.current)
+          connectWatchdogRef.current = null
+          if (postSdpIceTimerRef.current != null) {
+            clearTimeout(postSdpIceTimerRef.current)
+            postSdpIceTimerRef.current = null
+          }
+          reconnectCountRef.current = 0
+          setTransportReady(true)
+          setConnectionState('connected')
+          setLinkPhase('ready')
+          linkStep('✓ 転送可能（ICE+PC+DataChannel 成立）')
+        } else {
+          setTransportReady(false)
+        }
       }
-      // WebKit で peerConnection が無い／参照が一致しないことがあるため、無い場合はスキップ
-      if (ch.peerConnection != null && ch.peerConnection !== pc) {
-        setTransportReady(false)
-        return
-      }
-      const ice = pc.iceConnectionState
-      const iceOk = ice === 'connected' || ice === 'completed'
-      const pcs = pc.connectionState
-      // Safari: DataChannel が先に open しても pc がしばらく connecting のまま
-      const pcOk = pcs === 'connected' || (pcs === 'connecting' && iceOk)
-      const ok = iceOk && pcOk
-      if (ok) {
-        clearRecoverTimer()
-        clearTimeout(connectWatchdogRef.current)
+      refreshTransportRef.current = refreshTransport
+
+      const watchdogEpoch = sessionEpoch
+      clearTimeout(connectWatchdogRef.current)
+      connectWatchdogRef.current = setTimeout(() => {
         connectWatchdogRef.current = null
-        if (postSdpIceTimerRef.current != null) {
-          clearTimeout(postSdpIceTimerRef.current)
-          postSdpIceTimerRef.current = null
+        if (signalingEpochRef.current !== watchdogEpoch) return
+        const wpc = pcRef.current
+        if (!wpc || wpc !== pc) return
+        if (wpc.iceConnectionState !== 'failed' && wpc.connectionState !== 'failed') {
+          return
+        }
+        if (transferBusyRef.current || inboundReceiveBusyRef.current) return
+        devWarn(`[LynkOS/ICE #${sessionEpoch}] watchdog: ICE/PC failed → 再接続`)
+        clearRecoverTimer()
+        setConnectionState('reconnecting')
+        scheduleReconnect()
+      }, CONNECT_WATCHDOG_MS)
+
+      pc.oniceconnectionstatechange = () => {
+        if (signalingEpochRef.current !== sessionEpoch || pcRef.current !== pc) return
+        const ice = pc.iceConnectionState
+        logIceSnapshot(sessionEpoch, pc, `iceConnectionState → ${ice}`)
+        if (ice === 'connected' || ice === 'completed') {
+          clearRecoverTimer()
+          if (channelRef.current?.readyState !== 'open') setLinkPhase('datachannel')
+          refreshTransport()
+        }
+        if (ice === 'checking' || ice === 'disconnected') setLinkPhase('ice')
+        if (ice === 'failed') {
+          setTransportReady(false)
+          handleSyncDisconnectRef.current?.(false)
+        }
+        if (ice === 'disconnected') refreshTransport()
+      }
+      pc.onicegatheringstatechange = () => {
+        if (signalingEpochRef.current !== sessionEpoch || pcRef.current !== pc) return
+        logIceSnapshot(sessionEpoch, pc, `iceGatheringState → ${pc.iceGatheringState}`)
+        if (pc.iceGatheringState === 'gathering') setLinkPhase('ice')
+      }
+      pc.onsignalingstatechange = () => {
+        if (signalingEpochRef.current !== sessionEpoch || pcRef.current !== pc) return
+        const ss = pc.signalingState
+        logIceSnapshot(sessionEpoch, pc, `signalingState → ${ss}`)
+        if (ss === 'have-local-offer' || ss === 'have-remote-offer') setLinkPhase('sdp')
+
+        if (ss === 'stable' && pc.localDescription && pc.remoteDescription) {
+          setLinkPhase('ice')
+          if (postSdpIceTimerRef.current != null) {
+            clearTimeout(postSdpIceTimerRef.current)
+          }
+          const stallEpoch = sessionEpoch
+          postSdpIceTimerRef.current = window.setTimeout(() => {
+            postSdpIceTimerRef.current = null
+            if (signalingEpochRef.current !== stallEpoch) return
+            if (pcRef.current !== pc) return
+            if (transferBusyRef.current || inboundReceiveBusyRef.current) return
+            if (channelRef.current?.readyState === 'open') return
+            const iceSt = pc.iceConnectionState
+            if (iceSt === 'connected' || iceSt === 'completed') return
+            devWarn(`[LynkOS/ICE #${sessionEpoch}] SDP 確定後も ICE/DC が進まない → 再接続`)
+            /*
+             * planAutoReconnect は ice=new / conn=new のとき早期 return し、
+             * forever に再接続しない（ユーザー体感: 接続中のまま固まる）。
+             */
+            clearRecoverTimer()
+            setConnectionState('reconnecting')
+            scheduleReconnect()
+          }, POST_SDP_ICE_STALL_MS)
+        }
+      }
+
+      pc.onicecandidate = ({ candidate }) => {
+        if (signalingEpochRef.current !== sessionEpoch || pcRef.current !== pc) return
+        if (wsRef.current !== ws || ws.readyState !== WebSocket.OPEN) return
+        if (!firstLocalIceSent) {
+          firstLocalIceSent = true
+          linkStep('local ICE → シグナリングへ即送信（trickle）')
+        }
+        try {
+          ws.send(JSON.stringify({
+            type:       'ice-candidate',
+            candidate:  candidate ? candidate.toJSON() : null,
+          }))
+        } catch (_) { /*  */ }
+      }
+
+      pc.onconnectionstatechange = () => {
+        if (signalingEpochRef.current !== sessionEpoch || pcRef.current !== pc) return
+        const s = pc.connectionState
+        logIceSnapshot(sessionEpoch, pc, `connectionState → ${s}`)
+        if (s === 'connecting' && pc.signalingState === 'stable' && pc.remoteDescription) {
+          setLinkPhase('ice')
+        }
+        if (s === 'connected') {
+          clearRecoverTimer()
+          clearTimeout(connectWatchdogRef.current)
+          connectWatchdogRef.current = null
+          if (pcDisconnectedTimerRef.current != null) {
+            clearTimeout(pcDisconnectedTimerRef.current)
+            pcDisconnectedTimerRef.current = null
+          }
+          refreshTransport()
+        } else if (s === 'failed') {
+          setTransportReady(false)
+          handleSyncDisconnectRef.current?.(false)
+        } else if (s === 'closed') {
+          setTransportReady(false)
+          handleSyncDisconnectRef.current?.(false)
+        } else if (s === 'disconnected') {
+          setTransportReady(false)
+          if (pcDisconnectedTimerRef.current != null) {
+            clearTimeout(pcDisconnectedTimerRef.current)
+          }
+          const discEpoch = sessionEpoch
+          pcDisconnectedTimerRef.current = window.setTimeout(() => {
+            pcDisconnectedTimerRef.current = null
+            if (signalingEpochRef.current !== discEpoch) return
+            if (pcRef.current !== pc) return
+            if (pc.connectionState === 'connected') return
+            handleSyncDisconnectRef.current?.(false)
+          }, 550)
+        }
+      }
+
+      if (!politeRef.current) {
+        const ch = pc.createDataChannel('file-transfer', { ordered: true })
+        setupChannel(ch)
+      }
+      pc.ondatachannel = ({ channel }) => setupChannel(channel)
+
+      const sendOffer = async () => {
+        if (signalingEpochRef.current !== sessionEpoch || pcRef.current !== pc || wsRef.current !== ws) return
+        if (pc.signalingState !== 'stable' || makingOfferRef.current) return
+        if (ws.readyState !== WebSocket.OPEN) {
+          devWarn('[offer] WebSocket が未オープン')
+          return
+        }
+        try {
+          makingOfferRef.current = true
+          linkStep('createOffer 開始')
+          const offer = await pc.createOffer(OFFER_OPTIONS)
+          if (signalingEpochRef.current !== sessionEpoch || pcRef.current !== pc) return
+          await pc.setLocalDescription(offer)
+          if (signalingEpochRef.current !== sessionEpoch || wsRef.current !== ws) return
+          linkStep('setLocalDescription(offer) 完了 → offer 送信')
+          setLinkPhase('sdp')
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'offer', sdp: pc.localDescription }))
+          }
+        } catch (e) {
+          if (signalingEpochRef.current !== sessionEpoch) return
+          logError('offer error', e)
+          planAutoReconnect(pc)
+        } finally {
+          makingOfferRef.current = false
+        }
+      }
+
+      const applyRemoteOffer = async (offerMsg) => {
+        if (signalingEpochRef.current !== sessionEpoch || pcRef.current !== pc) return
+        const collision = makingOfferRef.current || pc.signalingState !== 'stable'
+        ignoreOfferRef.current = !politeRef.current && collision
+        if (ignoreOfferRef.current) return
+
+        linkStep('remote offer 受信 → setRemoteDescription')
+        await pc.setRemoteDescription(new RTCSessionDescription(offerMsg.sdp))
+        if (signalingEpochRef.current !== sessionEpoch || wsRef.current !== ws || pcRef.current !== pc) return
+        setLinkPhase('sdp')
+        linkStep('先行 ICE バッファ flush（並列）')
+        await flushCandidates(pc)
+        runDelayedIceFlush()
+        if (signalingEpochRef.current !== sessionEpoch || wsRef.current !== ws || pcRef.current !== pc) return
+        linkStep('createAnswer')
+        const answer = await pc.createAnswer()
+        if (signalingEpochRef.current !== sessionEpoch || pcRef.current !== pc) return
+        await pc.setLocalDescription(answer)
+        if (signalingEpochRef.current !== sessionEpoch || wsRef.current !== ws) return
+        linkStep('answer 送信')
+        setLinkPhase('sdp')
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'answer', sdp: pc.localDescription }))
         }
         reconnectCountRef.current = 0
-        setTransportReady(true)
-        setConnectionState('connected')
-        setLinkPhase('ready')
-        linkStep('✓ 転送可能（ICE+PC+DataChannel 成立）')
-      } else {
-        setTransportReady(false)
+        runDelayedIceFlush()
       }
-    }
-    refreshTransportRef.current = refreshTransport
 
-    const watchdogEpoch = sessionEpoch
-    clearTimeout(connectWatchdogRef.current)
-    connectWatchdogRef.current = setTimeout(() => {
-      connectWatchdogRef.current = null
-      if (signalingEpochRef.current !== watchdogEpoch) return
-      if (transferBusyRef.current || inboundReceiveBusyRef.current) return
-      if (channelRef.current?.readyState === 'open') return
-      if (pcRef.current?.connectionState === 'connected') return
-      devWarn(`[LynkOS/ICE #${sessionEpoch}] 接続ウォッチドッグ → 再接続`)
-      clearRecoverTimer()
-      setConnectionState('reconnecting')
-      scheduleReconnect()
-    }, CONNECT_WATCHDOG_MS)
-
-    pc.oniceconnectionstatechange = () => {
-      if (signalingEpochRef.current !== sessionEpoch || pcRef.current !== pc) return
-      const ice = pc.iceConnectionState
-      logIceSnapshot(sessionEpoch, pc, `iceConnectionState → ${ice}`)
-      if (ice === 'connected' || ice === 'completed') {
-        clearRecoverTimer()
-        if (channelRef.current?.readyState !== 'open') setLinkPhase('datachannel')
-        refreshTransport()
-      }
-      if (ice === 'checking' || ice === 'disconnected') setLinkPhase('ice')
-      if (ice === 'failed') {
-        setTransportReady(false)
-        handleSyncDisconnectRef.current?.(false)
-      }
-      if (ice === 'disconnected') refreshTransport()
-    }
-    pc.onicegatheringstatechange = () => {
-      if (signalingEpochRef.current !== sessionEpoch || pcRef.current !== pc) return
-      logIceSnapshot(sessionEpoch, pc, `iceGatheringState → ${pc.iceGatheringState}`)
-      if (pc.iceGatheringState === 'gathering') setLinkPhase('ice')
-    }
-    pc.onsignalingstatechange = () => {
-      if (signalingEpochRef.current !== sessionEpoch || pcRef.current !== pc) return
-      const ss = pc.signalingState
-      logIceSnapshot(sessionEpoch, pc, `signalingState → ${ss}`)
-      if (ss === 'have-local-offer' || ss === 'have-remote-offer') setLinkPhase('sdp')
-
-      // Chrome/Edge は SDP 完了後も gathering/checking イベントが遅れ、UI が sdp のまま残ることがある
-      if (ss === 'stable' && pc.localDescription && pc.remoteDescription) {
-        setLinkPhase('ice')
-        if (postSdpIceTimerRef.current != null) {
-          clearTimeout(postSdpIceTimerRef.current)
-        }
-        const stallEpoch = sessionEpoch
-        postSdpIceTimerRef.current = window.setTimeout(() => {
-          postSdpIceTimerRef.current = null
-          if (signalingEpochRef.current !== stallEpoch) return
-          if (pcRef.current !== pc) return
-          if (transferBusyRef.current || inboundReceiveBusyRef.current) return
-          if (channelRef.current?.readyState === 'open') return
-          const iceSt = pc.iceConnectionState
-          if (iceSt === 'connected' || iceSt === 'completed') return
-          devWarn(`[LynkOS/ICE #${sessionEpoch}] SDP 確定後も ICE/DC が進まない → 再接続`)
+      if (pendingOfferRef.current) {
+        const po = pendingOfferRef.current
+        pendingOfferRef.current = null
+        void applyRemoteOffer(po).catch((e) => {
+          if (signalingEpochRef.current !== sessionEpoch) return
+          logError('pending offer 処理', e)
           planAutoReconnect(pc)
-        }, POST_SDP_ICE_STALL_MS)
+        })
+      } else if (!politeRef.current) {
+        queueMicrotask(() => {
+          if (signalingEpochRef.current !== sessionEpoch) return
+          void sendOffer()
+        })
       }
     }
-
-    pc.onicecandidate = ({ candidate }) => {
-      if (signalingEpochRef.current !== sessionEpoch || pcRef.current !== pc) return
-      if (wsRef.current !== ws || ws.readyState !== WebSocket.OPEN) return
-      if (!firstLocalIceSent) {
-        firstLocalIceSent = true
-        linkStep('local ICE → シグナリングへ即送信（trickle）')
-      }
-      try {
-        ws.send(JSON.stringify({
-          type:       'ice-candidate',
-          candidate:  candidate ? candidate.toJSON() : null,
-        }))
-      } catch (_) { /*  */ }
-    }
-
-    pc.onconnectionstatechange = () => {
-      if (signalingEpochRef.current !== sessionEpoch || pcRef.current !== pc) return
-      const s = pc.connectionState
-      logIceSnapshot(sessionEpoch, pc, `connectionState → ${s}`)
-      if (s === 'connecting' && pc.signalingState === 'stable' && pc.remoteDescription) {
-        setLinkPhase('ice')
-      }
-      if (s === 'connected') {
-        clearRecoverTimer()
-        clearTimeout(connectWatchdogRef.current)
-        connectWatchdogRef.current = null
-        if (pcDisconnectedTimerRef.current != null) {
-          clearTimeout(pcDisconnectedTimerRef.current)
-          pcDisconnectedTimerRef.current = null
-        }
-        refreshTransport()
-      } else if (s === 'failed') {
-        setTransportReady(false)
-        handleSyncDisconnectRef.current?.(false)
-      } else if (s === 'closed') {
-        setTransportReady(false)
-        handleSyncDisconnectRef.current?.(false)
-      } else if (s === 'disconnected') {
-        setTransportReady(false)
-        if (pcDisconnectedTimerRef.current != null) {
-          clearTimeout(pcDisconnectedTimerRef.current)
-        }
-        const discEpoch = sessionEpoch
-        pcDisconnectedTimerRef.current = window.setTimeout(() => {
-          pcDisconnectedTimerRef.current = null
-          if (signalingEpochRef.current !== discEpoch) return
-          if (pcRef.current !== pc) return
-          if (pc.connectionState === 'connected') return
-          handleSyncDisconnectRef.current?.(false)
-        }, 550)
-      }
-    }
-
-    if (!politeRef.current) {
-      const ch = pc.createDataChannel('file-transfer', { ordered: true })
-      setupChannel(ch)
-    }
-    pc.ondatachannel = ({ channel }) => setupChannel(channel)
 
     ws.onopen = () => {
       if (signalingEpochRef.current !== sessionEpoch || wsRef.current !== ws) return
       linkStep('WebSocket open（シグナリング）')
       devLog(`[LynkOS/ICE #${sessionEpoch}] [WS] open`)
       setLinkPhase('signaling')
-      flushPairConfirmedRef.current()
       if (wsPingTimerRef.current != null) clearInterval(wsPingTimerRef.current)
       wsPingTimerRef.current = window.setInterval(() => {
         if (signalingEpochRef.current !== sessionEpoch || wsRef.current !== ws) return
@@ -934,9 +1080,12 @@ export default function useWebRTC({
           } catch (_) { /*  */ }
         }
       }, 20000)
+      beginPeerConnection()
+      isConnectingRef.current = false
     }
     ws.onerror = () => {
       if (signalingEpochRef.current !== sessionEpoch || wsRef.current !== ws) return
+      isConnectingRef.current = false
       logConnectionFailure('WebSocket signaling', wsUrl)
       setConnectionUserError((prev) =>
         prev ||
@@ -945,48 +1094,28 @@ export default function useWebRTC({
     }
     ws.onclose = (e) => {
       if (signalingEpochRef.current !== sessionEpoch) return
+      isConnectingRef.current = false
       devLog(`[LynkOS/ICE #${sessionEpoch}] [WS] close code=`, e.code)
       if (wsPingTimerRef.current != null) {
         clearInterval(wsPingTimerRef.current)
         wsPingTimerRef.current = null
       }
-      // DataChannel がすでに open なら WS が切れても P2P は維持されているので再接続不要
       if (e.code !== 1000 && targetRef.current &&
           channelRef.current?.readyState !== 'open') {
-        planAutoReconnect(pc)
-      }
-    }
-
-    const sendOffer = async () => {
-      if (signalingEpochRef.current !== sessionEpoch || pcRef.current !== pc || wsRef.current !== ws) return
-      if (pc.signalingState !== 'stable' || makingOfferRef.current) return
-      if (ws.readyState !== WebSocket.OPEN) {
-        devWarn('[offer] WebSocket が未オープン')
-        return
-      }
-      try {
-        makingOfferRef.current = true
-        linkStep('createOffer 開始')
-        const offer = await pc.createOffer(OFFER_OPTIONS)
-        if (signalingEpochRef.current !== sessionEpoch || pcRef.current !== pc) return
-        await pc.setLocalDescription(offer)
-        if (signalingEpochRef.current !== sessionEpoch || wsRef.current !== ws) return
-        linkStep('setLocalDescription(offer) 完了 → offer 送信')
-        setLinkPhase('sdp')
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'offer', sdp: pc.localDescription }))
+        const pcLive = pcRef.current
+        if (pcLive?.connectionState === 'connected') return
+        const iceWc = pcLive?.iceConnectionState
+        if (pcLive && (iceWc === 'connected' || iceWc === 'completed')) return
+        if (pcLive) {
+          planAutoReconnect(pcLive)
+        } else if (!webrtcNegotiationStartedRef.current && connectParamsRef.current) {
+          scheduleReconnect()
         }
-      } catch (e) {
-        if (signalingEpochRef.current !== sessionEpoch) return
-        logError('offer error', e)
-        planAutoReconnect(pc)
-      } finally {
-        makingOfferRef.current = false
       }
     }
 
     ws.onmessage = async (ev) => {
-      if (signalingEpochRef.current !== sessionEpoch || wsRef.current !== ws || pcRef.current !== pc) return
+      if (signalingEpochRef.current !== sessionEpoch || wsRef.current !== ws) return
       let raw = ev.data
       if (typeof raw !== 'string') {
         try {
@@ -996,33 +1125,49 @@ export default function useWebRTC({
         } catch {
           return
         }
-        if (signalingEpochRef.current !== sessionEpoch || wsRef.current !== ws || pcRef.current !== pc) return
+        if (signalingEpochRef.current !== sessionEpoch || wsRef.current !== ws) return
       }
       let msg
       try { msg = JSON.parse(raw) } catch { return }
-      if (signalingEpochRef.current !== sessionEpoch || wsRef.current !== ws || pcRef.current !== pc) return
+      if (signalingEpochRef.current !== sessionEpoch || wsRef.current !== ws) return
       devLog(`[LynkOS/ICE #${sessionEpoch}] [SIG ←]`, msg.type)
 
       try {
-        if (msg.type === 'pair-confirmed') {
-          peerPairingConfirmedRef.current = true
-          setPeerPairingConfirmed(true)
-        } else if (msg.type === 'peer-joined') {
-          if (!politeRef.current) {
-            if (peerJoinOfferTimerRef.current != null) {
-              clearTimeout(peerJoinOfferTimerRef.current)
-              peerJoinOfferTimerRef.current = null
-            }
-            linkStep('peer-joined（impolite）→ 即オファー（microtask）')
-            queueMicrotask(() => {
-              if (signalingEpochRef.current !== sessionEpoch) return
-              if (!politeRef.current) void sendOffer()
-            })
-          }
-          // 先に確認した側の通知が、相手未入室で届いていなかった場合の取りこぼし対策（polite 側も必須）
-          flushPairConfirmedRef.current()
+        if (msg.type === 'pong') return
 
-        } else if (msg.type === 'offer') {
+        if (msg.type === 'peer-joined') {
+          const pcNow = pcRef.current
+          const w = wsRef.current
+          if (
+            !politeRef.current &&
+            pcNow &&
+            w &&
+            w.readyState === WebSocket.OPEN &&
+            pcNow.signalingState === 'have-local-offer' &&
+            pcNow.localDescription?.type === 'offer'
+          ) {
+            devLog(
+              `[LynkOS/ICE #${sessionEpoch}] peer-joined → offer 再送（相手が入室）`
+            )
+            try {
+              w.send(JSON.stringify({ type: 'offer', sdp: pcNow.localDescription }))
+            } catch (_) {
+              /*  */
+            }
+          }
+          return
+        }
+
+        const pc = pcRef.current
+        if (!pc) {
+          if (msg.type === 'offer') {
+            pendingOfferRef.current = msg
+          }
+          return
+        }
+        if (signalingEpochRef.current !== sessionEpoch || pcRef.current !== pc) return
+
+        if (msg.type === 'offer') {
           const collision = makingOfferRef.current || pc.signalingState !== 'stable'
           ignoreOfferRef.current = !politeRef.current && collision
           if (ignoreOfferRef.current) return
@@ -1033,6 +1178,7 @@ export default function useWebRTC({
           setLinkPhase('sdp')
           linkStep('先行 ICE バッファ flush（並列）')
           await flushCandidates(pc)
+          runDelayedIceFlush()
           if (signalingEpochRef.current !== sessionEpoch || wsRef.current !== ws || pcRef.current !== pc) return
           linkStep('createAnswer')
           const answer = await pc.createAnswer()
@@ -1044,9 +1190,8 @@ export default function useWebRTC({
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'answer', sdp: pc.localDescription }))
           }
-          // シグナリングまで通っている → ICE 待ちの再試行で上限に達しないようリセット
           reconnectCountRef.current = 0
-          flushPairConfirmedRef.current()
+          runDelayedIceFlush()
 
         } else if (msg.type === 'answer') {
           if (pc.signalingState === 'have-local-offer') {
@@ -1056,9 +1201,9 @@ export default function useWebRTC({
             setLinkPhase('sdp')
             linkStep('先行 ICE flush（answer 後）')
             await flushCandidates(pc)
+            runDelayedIceFlush()
             if (signalingEpochRef.current !== sessionEpoch) return
             reconnectCountRef.current = 0
-            flushPairConfirmedRef.current()
           }
 
         } else if (msg.type === 'ice-candidate') {
@@ -1071,7 +1216,6 @@ export default function useWebRTC({
             else if (msg.candidate) pendingCandidates.current.push(msg.candidate)
             return
           }
-          // 生成・受信とも trickle: 待たずに適用して WS 処理をブロックしない
           try {
             const cand = endOfCandidates
               ? null
@@ -1088,33 +1232,52 @@ export default function useWebRTC({
         } else if (msg.type === 'disconnect') {
           handleSyncDisconnectRef.current?.(true)
         } else if (msg.type === 'peer-left') {
-          // 相手のシグナリング WS だけ落ちた場合でも P2P は維持されることがある（アイドル切断など）
-          if (channelRef.current?.readyState === 'open') return
           if (transferBusyRef.current || inboundReceiveBusyRef.current) return
-          planAutoReconnect(pc)
+          if (transportReadyRef.current) return
+          const ch = channelRef.current
+          if (ch?.readyState === 'open' || ch?.readyState === 'connecting') return
+          const pcLive = pcRef.current
+          if (pcLive?.connectionState === 'connected') return
+          const icePl = pcLive?.iceConnectionState
+          if (pcLive && (icePl === 'connected' || icePl === 'completed')) return
+          if (pcLive) {
+            planAutoReconnect(pcLive)
+          } else if (!webrtcNegotiationStartedRef.current) {
+            scheduleReconnect()
+          }
         }
       } catch (e) {
         if (signalingEpochRef.current !== sessionEpoch) return
         logError(`SIG メッセージ処理 (${msg?.type})`, e)
-        planAutoReconnect(pc)
+        const pcLive = pcRef.current
+        if (pcLive) planAutoReconnect(pcLive)
+        else if (connectParamsRef.current) scheduleReconnect()
       }
     }
   }, [fullReset, setupChannel, scheduleReconnect, flushCandidates, planAutoReconnect])
 
   useEffect(() => { connectRef.current = connect }, [connect])
 
-  // targetDevice が変わったら接続
-  useEffect(() => {
+  // targetDevice が変わったら接続（useLayoutEffect で accept 送信より先に WebRTC 開始できるよう同期）
+  useLayoutEffect(() => {
     if (!targetDevice) {
+      linkSessionGenerationRef.current += 1
       setConnectionUserError(null)
       cleanup()
-      return
+      return undefined
     }
+    const generation = ++linkSessionGenerationRef.current
     reconnectCountRef.current = 0
     const myId = localStorage.getItem('lynkos-device-id') ?? 'unknown'
     const room = [myId, targetDevice.deviceId].sort().join('_')
     connect(room, myId, targetDevice.deviceId)
-    return cleanup
+    return () => {
+      const g = generation
+      queueMicrotask(() => {
+        if (linkSessionGenerationRef.current !== g) return
+        cleanup()
+      })
+    }
   }, [targetDevice]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ページがフォアグラウンドに戻ったとき（iOS Safariのバックグラウンド復帰など）に再接続
@@ -1122,9 +1285,14 @@ export default function useWebRTC({
     const onVisible = () => {
       if (document.visibilityState !== 'visible') return
       if (!connectParamsRef.current || !targetRef.current) return
+      if (isConnectingRef.current) return
       if (transferBusyRef.current || inboundReceiveBusyRef.current) return
       const rs = channelRef.current?.readyState
       if (rs === 'open' || rs === 'connecting') return
+      const pcv = pcRef.current
+      if (pcv?.connectionState === 'connected') return
+      const icev = pcv?.iceConnectionState
+      if (pcv && (icev === 'connected' || icev === 'completed')) return
       devLog('[visibility] フォアグラウンド復帰 → 再接続')
       reconnectCountRef.current = 0
       const { room, myId, targetId } = connectParamsRef.current
@@ -1139,6 +1307,9 @@ export default function useWebRTC({
   // ──────────────────────────────────────────────
   const reconnect = useCallback(() => {
     if (!connectParamsRef.current) return
+    if (isConnectingRef.current) return
+    const p = pcRef.current
+    if (p && p.connectionState === 'connected') return
     reconnectCountRef.current = 0
     setConnectionUserError(null)
     const { room, myId, targetId } = connectParamsRef.current
@@ -1166,21 +1337,30 @@ export default function useWebRTC({
         idList.forEach((id) => onProgress?.({ id, progress: 0, status: 'error' }))
         return
       }
-      if (!localPairingConfirmedRef.current || !peerPairingConfirmedRef.current) {
-        devWarn('[sendFiles] 双方の ID 確認が完了していません')
-        idList.forEach((id) => onProgress?.({ id, progress: 0, status: 'error' }))
-        return
-      }
-
       transferBusyRef.current = true
       const myName  = localStorage.getItem('lynkos-device-name') ?? 'このデバイス'
       const myType  = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
+      let rawIcon = ''
+      try {
+        rawIcon = localStorage.getItem('lynkos-device-icon') ?? ''
+      } catch {
+        rawIcon = ''
+      }
+      const senderIcon = iconForNetworkPayload(rawIcon)
 
       channel.send(JSON.stringify({
-        type: 'file-request',
-        senderName: myName,
-        senderType: myType,
-        files: fileArr.map((f) => ({ name: f.name, size: f.size })),
+        type:                  'file-request',
+        signalingPreApproved: true,
+        senderName:            myName,
+        senderType:            myType,
+        ...(senderIcon
+          ? { senderIcon, device: { name: myName, icon: senderIcon } }
+          : { device: { name: myName } }),
+        files:                 fileArr.map((f) => ({
+          name: f.name,
+          size: f.size,
+          type: f.type || 'application/octet-stream',
+        })),
       }))
 
       const accepted = await new Promise((resolve) => {
@@ -1214,28 +1394,44 @@ export default function useWebRTC({
           const id   = idList[i]
           const size = file.size
 
-          onProgress?.({ id, status: 'sending', progress: 0 })
-          channel.send(JSON.stringify({ type: 'file-meta', id, name: file.name, size }))
+          try {
+            onProgress?.({ id, status: 'sending', progress: 0 })
+            channel.send(JSON.stringify({
+            type: 'file-meta', id, name: file.name, size,
+            mime: file.type || 'application/octet-stream',
+          }))
 
-          let offset = 0
-          while (offset < size) {
-            await waitChannelDrain(channel)
-            const end = Math.min(offset + CHUNK_SIZE, size)
-            const buf = await file.slice(offset, end).arrayBuffer()
-            channel.send(buf)
-            offset = end
-            onProgress?.({
-              id,
-              status:   'sending',
-              progress: Math.min(99, Math.round((offset / size) * 100)),
+            let offset = 0
+            while (offset < size) {
+              await waitChannelDrain(channel)
+              const end = Math.min(offset + CHUNK_SIZE, size)
+              const buf = await file.slice(offset, end).arrayBuffer()
+              channel.send(buf)
+              offset = end
+              onProgress?.({
+                id,
+                status:   'sending',
+                progress: Math.min(99, Math.round((offset / size) * 100)),
+              })
+            }
+            channel.send(JSON.stringify({ type: 'file-end', id }))
+            await new Promise((resolve, reject) => {
+              const t = setTimeout(() => {
+                fileAckWaitersRef.current.delete(id)
+                reject(new Error('file-received-ack timeout'))
+              }, FILE_RECV_ACK_TIMEOUT_MS)
+              fileAckWaitersRef.current.set(id, { resolve, reject, t })
             })
+            onComplete?.(id)
+          } catch (err) {
+            logError('sendFiles', err)
+            onProgress?.({ id, progress: 0, status: 'error' })
+            for (let j = i + 1; j < fileArr.length; j++) {
+              onProgress?.({ id: idList[j], progress: 0, status: 'error' })
+            }
+            break
           }
-          channel.send(JSON.stringify({ type: 'file-end', id }))
-          onComplete?.(id)
         }
-      } catch (err) {
-        logError('sendFiles', err)
-        idList.forEach((id) => onProgress?.({ id, progress: 0, status: 'error' }))
       } finally {
         transferBusyRef.current = false
       }
@@ -1247,7 +1443,6 @@ export default function useWebRTC({
     connectionState,
     reconnect,
     linkPhase,
-    peerPairingConfirmed,
     transportReady,
     connectionUserError,
   }

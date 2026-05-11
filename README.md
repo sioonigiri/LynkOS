@@ -13,15 +13,55 @@
 
 ---
 
+## 初回セットアップ（バックエンド）
+
+仮想環境 **`.venv`** は Git に含まれません。`backend` で一度だけ作成し、依存を入れてください。
+
+**Windows（PowerShell）**
+
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+**macOS / Linux**
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+> Python 3.10 以上を推奨します。`python` / `python3` でバージョンを確認してください。
+
+---
+
 ## 起動方法（開発）
 
 ### バックエンド（Django + Daphne）
 
+**Windows**
+
 ```powershell
 cd backend
-.\venv\Scripts\activate
+.\.venv\Scripts\activate
+$env:DJANGO_DEBUG="true"
 daphne -b 0.0.0.0 -p 8000 config.asgi:application
 ```
+
+**macOS / Linux**
+
+```bash
+cd backend
+source .venv/bin/activate
+export DJANGO_DEBUG=true
+daphne -b 0.0.0.0 -p 8000 config.asgi:application
+```
+
+> `DJANGO_DEBUG` を付けないとデフォルトで `DEBUG=false` となり、`DJANGO_ALLOWED_HOSTS` 未設定だと起動時にエラーになります（または LAN IP で `DisallowedHost` が大量に出ます）。スマホから `http://<PCのIP>:8000` で試す場合は **`DJANGO_DEBUG=true` を付ける**のが簡単です。
 
 ### フロントエンド（Vite）
 
@@ -31,7 +71,7 @@ npm install
 npm run dev
 ```
 
-ブラウザで `http://localhost:5173` を開く（API / WS は `vite.config.js` のプロキシで :8000 に転送）。
+ブラウザで `http://localhost:5173` を開く（API / WS は Vite が既定で `http://127.0.0.1:8000` にプロキシします。**先に Daphne を起動**してください。別ポートのときは `frontend/.env.development` の `VITE_DEV_PROXY_TARGET` を変えます）。
 
 ### Windows 一括起動（本番ビルド + Django）
 

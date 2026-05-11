@@ -46,7 +46,7 @@ function TransferRow({ t, onReceiveTap }) {
               type="button"
               className={styles.fileTapBtn}
               onClick={() => onReceiveTap(t)}
-              title="ダウンロードの確認へ"
+              aria-label="保存の確認へ"
             >
               {t.name}
             </button>
@@ -57,12 +57,12 @@ function TransferRow({ t, onReceiveTap }) {
         </div>
 
         <span className={`${styles.badge} ${styles[`badge_${t.status}`] ?? ''}`}>
-          {phase === 'waiting'             ? '待機中'
-          : t.status === 'receiving'      ? `受信中 ${t.progress ?? 0}%`
-          : t.status === 'sending'        ? `転送中 ${t.progress ?? 0}%`
-          : t.status === 'done'             ? '完了（送信）'
-          : t.status === 'received_saved'  ? (t.directSaved ? '完了（保存済・指定先）' : '完了（保存済）')
-          : t.status === 'received_ready' ? '受信完了（保存待ち）'
+          {phase === 'waiting'             ? '待機'
+          : t.status === 'receiving'      ? `受信 ${t.progress ?? 0}%`
+          : t.status === 'sending'        ? `送信 ${t.progress ?? 0}%`
+          : t.status === 'done'             ? '完了'
+          : t.status === 'received_saved'  ? '完了'
+          : t.status === 'received_ready' ? '受信'
           : t.status === 'error'          ? 'エラー'
           : t.status === 'rejected'       ? '拒否'
           : `${t.progress ?? 0}%`}
@@ -85,16 +85,16 @@ function inboundStripText(state) {
   if (!state) return ''
   const q = state.queuedRequests ?? 0
   if (state.phase === 'prompt' && q > 0) {
-    return `受信確認のあと、さらに ${q} 件が順番待ちです（同時受信しません）。`
+    return `+${q}`
   }
   if (state.phase === 'receiving' && q > 0) {
-    return `受信中です。あと ${q} 件のリクエストが待機中です。`
+    return `受信 +${q}`
   }
   if (state.phase === 'receiving') {
-    return 'ファイルを受信中です。完了するまで次の受信は始まりません。'
+    return '受信中'
   }
   if (q > 0) {
-    return `受信キュー: ${q} 件が順番待ちです。`
+    return `+${q}`
   }
   return ''
 }
@@ -136,7 +136,7 @@ export default function TransferStatus({
             className={`${styles.tab} ${tab === 'inflight' ? styles.tabActive : ''}`}
             onClick={() => setTab('inflight')}
           >
-            転送中
+            進行
             {hasInFlight ? (
               <span className={styles.tabCount}>{inFlightTransfers.length}</span>
             ) : null}
@@ -167,7 +167,9 @@ export default function TransferStatus({
       )}
 
       {tab === 'inflight' && !hasInFlight && hasCompleted && (
-        <p className={styles.tabEmpty}>転送中のファイルはありません。</p>
+        <p className={styles.tabEmpty} aria-hidden>
+          —
+        </p>
       )}
 
       {tab === 'completed' && hasCompleted && (
@@ -181,7 +183,9 @@ export default function TransferStatus({
       )}
 
       {tab === 'completed' && !hasCompleted && hasInFlight && (
-        <p className={styles.tabEmpty}>完了した転送はまだありません。</p>
+        <p className={styles.tabEmpty} aria-hidden>
+          —
+        </p>
       )}
     </div>
   )
