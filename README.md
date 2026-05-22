@@ -1,23 +1,96 @@
 # LynkOS
 
-同一 Wi-Fi 内のデバイス間で、AirDrop のようにファイルを送受信する **PWA（プログレッシブウェブアプリ）**。  
-アカウント不要・WebRTC P2P 転送・Django はシグナリングとデバイス一覧のみ（ファイル中身はサーバーを経由しません）。
+AirDrop のように、
+iPhone・Windows・PC 間でファイルを直接送受信できるクロスプラットフォーム共有システム。
 
-詳細な方針はリポジトリ直下の `concept.md` を参照してください。
+LynkOS は、同一 Wi-Fi 内のデバイス同士を自動検出し、アカウント不要で高速な P2P ファイル転送を行う **PWA（プログレッシブウェブアプリ）** です。
 
-### 接続のしかた（要約）
+* アカウント不要
+* WebRTC による P2P 転送
+* サーバーはシグナリングのみ
+* ファイル本体はサーバー非経由
+* iPhone / Windows / ブラウザ対応
+* ホーム画面追加によるアプリ化対応
 
-1. **双方**のブラウザで、近くのデバイス一覧から**お互い**を選ぶ。  
-2. 表示される **短いセッション ID** を相手画面と照合し、「相手の ID と一致した」で確認する。  
-3. 接続状態（シグナリング・ICE・データチャネル）がダイアログに表示され、準備ができたらファイル送信が有効になる。
+> AirDrop のような体験を、OS を超えて実現することを目的に開発しています。
+
+詳細なコンセプトや設計思想については、リポジトリ直下の `concept.md` を参照してください。
 
 ---
 
-## 初回セットアップ（バックエンド）
+# Features
 
-仮想環境 **`.venv`** は Git に含まれません。`backend` で一度だけ作成し、依存を入れてください。
+* Nearby device discovery
+* Cross-platform file sharing
+* WebRTC DataChannel transfer
+* WebSocket signaling
+* Session ID verification
+* PWA install support
+* Serverless file transfer architecture
 
-**Windows（PowerShell）**
+---
+
+# How It Works
+
+1. **双方**のブラウザで近くのデバイス一覧から**お互い**を選択
+2. 表示される短い **Session ID** を相手画面と照合
+3. 接続状態（Signaling / ICE / DataChannel）を確認
+4. 接続完了後、ファイル送信が可能になります
+
+---
+
+# Architecture
+
+```text
+┌────────────┐        WebRTC P2P        ┌────────────┐
+│   iPhone   │ ◀────────────────────▶ │  Windows   │
+└────────────┘                          └────────────┘
+         \                                /
+          \                              /
+           \      WebSocket Signaling   /
+            ───────────────────────────
+                    Django Channels
+```
+
+* ファイル本体は P2P 転送
+* Django は接続仲介とデバイス一覧管理のみ
+* サーバーはファイル内容を保持しません
+
+---
+
+# Tech Stack
+
+| Role         | Technology                  |
+| ------------ | --------------------------- |
+| Frontend     | React + Vite                |
+| P2P Transfer | WebRTC DataChannel          |
+| Signaling    | Django Channels (WebSocket) |
+| Backend      | Django + Daphne             |
+| Client Type  | PWA (Browser App)           |
+
+---
+
+# Directory Structure
+
+```text
+LynkOS/
+├── backend/          Django・Channels・Device API
+├── frontend/
+│   ├── public/       manifest.json・sw.js・icons
+│   └── src/
+├── scripts/
+├── concept.md
+└── start_all.bat
+```
+
+---
+
+# Initial Setup (Backend)
+
+仮想環境 `.venv` は Git に含まれません。
+初回のみ `backend` ディレクトリで作成してください。
+
+## Windows (PowerShell)
 
 ```powershell
 cd backend
@@ -26,7 +99,7 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-**macOS / Linux**
+## macOS / Linux
 
 ```bash
 cd backend
@@ -35,15 +108,15 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-> Python 3.10 以上を推奨します。`python` / `python3` でバージョンを確認してください。
+> Python 3.10 以上を推奨します。
 
 ---
 
-## 起動方法（開発）
+# Development
 
-### バックエンド（Django + Daphne）
+## Backend (Django + Daphne)
 
-**Windows**
+### Windows
 
 ```powershell
 cd backend
@@ -52,7 +125,7 @@ $env:DJANGO_DEBUG="true"
 daphne -b 0.0.0.0 -p 8000 config.asgi:application
 ```
 
-**macOS / Linux**
+### macOS / Linux
 
 ```bash
 cd backend
@@ -61,66 +134,69 @@ export DJANGO_DEBUG=true
 daphne -b 0.0.0.0 -p 8000 config.asgi:application
 ```
 
-> `DJANGO_DEBUG` を付けないとデフォルトで `DEBUG=false` となり、`DJANGO_ALLOWED_HOSTS` 未設定だと起動時にエラーになります（または LAN IP で `DisallowedHost` が大量に出ます）。スマホから `http://<PCのIP>:8000` で試す場合は **`DJANGO_DEBUG=true` を付ける**のが簡単です。
+> `DJANGO_DEBUG=true` を付けることで LAN 内アクセス時の `DisallowedHost` エラーを回避できます。
 
-### フロントエンド（Vite）
+---
 
-```powershell
+## Frontend (Vite)
+
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-ブラウザで `http://localhost:5173` を開く（API / WS は Vite が既定で `http://127.0.0.1:8000` にプロキシします。**先に Daphne を起動**してください。別ポートのときは `frontend/.env.development` の `VITE_DEV_PROXY_TARGET` を変えます）。
+ブラウザで以下を開きます。
 
-### Windows 一括起動（本番ビルド + Django）
+```text
+http://localhost:5173
+```
 
-リポジトリ直下の `start_all.bat` を実行すると、フロントをビルドして Django が `http://localhost:8000` で配信します。
-
----
-
-## PWA として使う
-
-1. **PC とスマホを同じ Wi-Fi に接続**
-2. PC の IPv4 を確認（`ipconfig` など）
-3. スマホのブラウザで `http://<PCのIP>:8000`（または開発時は Vite の URL）を開く
-4. **iOS Safari**: 共有 → **ホーム画面に追加**  
-   **Android Chrome**: メニュー → **ホーム画面に追加** または **アプリをインストール**
-
-> 本番（`npm run build` 後に Django から配信）では Service Worker が登録され、Chrome などでインストールしやすくなります。`npm run dev` では SW は無効です。
+Vite は既定で `http://127.0.0.1:8000` に API / WebSocket をプロキシします。
 
 ---
 
-## 本番ビルド
+# PWA Installation
 
-```powershell
+1. PC とスマホを同じ Wi-Fi に接続
+2. PC の IPv4 アドレスを確認
+3. スマホから `http://<PCのIP>:8000` を開く
+
+## iOS Safari
+
+共有 → 「ホーム画面に追加」
+
+## Android Chrome
+
+メニュー → 「ホーム画面に追加」または「アプリをインストール」
+
+---
+
+# Production Build
+
+```bash
 cd frontend
 npm run build
 ```
 
-生成物は `frontend/dist/`。Django から静的ファイルとして配信する構成を想定しています。
+生成物は `frontend/dist/` に出力されます。
+
+Django から静的ファイルとして配信する構成を想定しています。
 
 ---
 
-## 技術スタック
+# Deployment
 
-| 役割 | 技術 |
-|------|------|
-| フロントエンド | React + Vite |
-| P2P 転送 | WebRTC DataChannel |
-| シグナリング | Django Channels (WebSocket) |
-| クライアント形態 | PWA（ブラウザ） |
-| バックエンド | Django + Daphne |
+* Frontend: Vercel
+* Backend: Render
+
+設定例は `DEPLOY.md` を参照してください。
 
 ---
 
-## ディレクトリ構成（概要）
+# Vision
 
-```
-LynkOS/
-├── backend/          Django・Channels・デバイス API
-├── frontend/
-│   ├── public/       manifest.json・sw.js・アイコン
-│   └── src/
-└── start_all.bat     Windows 用まとめ起動
-```
+LynkOS は、OS に依存しないシームレスなファイル共有体験を目指しています。
+
+AirDrop のような「近くにいるだけで送れる」体験を、
+iPhone・Windows・Web の境界を越えて実現することが目標です。
