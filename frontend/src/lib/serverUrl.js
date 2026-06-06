@@ -21,9 +21,17 @@ const devUseProxy =
   String(import.meta.env.VITE_DEV_USE_PROXY || '').toLowerCase() === 'true' ||
   import.meta.env.VITE_DEV_USE_PROXY === '1'
 
-const devApiOrigin = String(
-  import.meta.env.VITE_DEV_API_ORIGIN || 'http://127.0.0.1:8000'
-).replace(/\/$/, '')
+function defaultDevApiOrigin() {
+  const fromEnv = String(import.meta.env.VITE_DEV_API_ORIGIN || '').trim()
+  if (fromEnv) return fromEnv.replace(/\/$/, '')
+  const host = hostname.toLowerCase()
+  if (host && host !== 'localhost' && host !== '127.0.0.1') {
+    return `${protocol}//${hostname}:8000`
+  }
+  return 'http://127.0.0.1:8000'
+}
+
+const devApiOrigin = defaultDevApiOrigin()
 
 function apiBase() {
   if (configuredOrigin) return configuredOrigin

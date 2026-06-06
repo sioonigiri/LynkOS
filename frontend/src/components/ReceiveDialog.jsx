@@ -58,11 +58,23 @@ export default function ReceiveDialog({ request, onAccept, onReject }) {
         </div>
 
         <div className={styles.actions}>
-          <button type="button" className={styles.btnReject} onClick={onReject} aria-label="拒否">
-            ✕
+          <button
+            type="button"
+            className={`${styles.actionRow} ${styles.actionRowNeutral}`}
+            onClick={onReject}
+            aria-label="拒否"
+          >
+            <span className={styles.rejectMark} aria-hidden>×</span>
+            <span>拒否</span>
           </button>
-          <button type="button" className={styles.btnAccept} onClick={onAccept} aria-label="受信">
-            ✓
+          <button
+            type="button"
+            className={`${styles.actionRow} ${styles.actionRowSelected}`}
+            onClick={onAccept}
+            aria-label="受信"
+          >
+            <span className={styles.circleMark} aria-hidden />
+            <span>許可</span>
           </button>
         </div>
 

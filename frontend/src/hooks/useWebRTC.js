@@ -44,6 +44,8 @@ const POST_SDP_ICE_STALL_MS = 6500
 const POST_REMOTE_FLUSH_DELAY_MS = 40
 /** 送信側: 受信完了 ACK を待つ上限（受信側 IDB キューが空になるまで切断しない） */
 const FILE_RECV_ACK_TIMEOUT_MS = 300_000
+/** 転送中の一瞬の ICE disconnected を切断扱いにする猶予 */
+const PEER_DISCONNECT_ABORT_MS = 550
 /** DataChannel のみのオファー（メディアネゴ不要で軽量化） */
 const OFFER_OPTIONS = {
   offerToReceiveAudio: false,
@@ -119,6 +121,7 @@ export default function useWebRTC({
   onInboundQueueChange,
   onReceive,   // 受信完了時: { id, name, size }
   onFailed,    // 再接続上限に達したとき
+  onTransferAbort, // 転送中に相手切断などで中断したとき
 }) {
   const [connectionState, setConnectionState] = useState('disconnected')
   /** PC + ICE + DataChannel がすべて有効なときのみ true（送信可否の唯一の基準） */
@@ -156,6 +159,8 @@ export default function useWebRTC({
   const lastSyncDisconnectRef = useRef(0)
   const pcDisconnectedTimerRef = useRef(null)
   const handleSyncDisconnectRef = useRef((/** @type {boolean} */ _fromRemote) => {})
+  const abortActiveTransferRef = useRef((/** @type {string} */ _reason) => {})
+  const pcTransferAbortTimerRef = useRef(null)
   /** シグナリング／P2P セッション世代。fullReset のたびに進め、古い非同期ハンドラを無効化 */
   const signalingEpochRef = useRef(0)
   /** 許可後にのみ true — RTCPeerConnection を生成済み */
@@ -183,6 +188,7 @@ export default function useWebRTC({
   const onReceiveRequestRef = useRef(onReceiveRequest)
   const onInboundQueueChangeRef = useRef(onInboundQueueChange)
   const onFailedRef         = useRef(onFailed)
+  const onTransferAbortRef  = useRef(onTransferAbort)
   const onConnectionResetRef = useRef(onConnectionReset)
   const refreshTransportRef  = useRef(() => {})
 
@@ -192,6 +198,7 @@ export default function useWebRTC({
   useEffect(() => { onReceiveRequestRef.current = onReceiveRequest }, [onReceiveRequest])
   useEffect(() => { onInboundQueueChangeRef.current = onInboundQueueChange }, [onInboundQueueChange])
   useEffect(() => { onFailedRef.current  = onFailed },    [onFailed])
+  useEffect(() => { onTransferAbortRef.current = onTransferAbort }, [onTransferAbort])
   useEffect(() => { onConnectionResetRef.current = onConnectionReset }, [onConnectionReset])
 
   const prevConnectionStateRef = useRef(null)
@@ -238,6 +245,10 @@ export default function useWebRTC({
     ch.onclose = () => {
       if (channelRef.current !== ch) return
       devLog('[DC] closed')
+      if (transferBusyRef.current || inboundReceiveBusyRef.current) {
+        abortActiveTransferRef.current?.('dc-closed')
+        return
+      }
       for (const [id, w] of [...fileAckWaitersRef.current.entries()]) {
         fileAckWaitersRef.current.delete(id)
         clearTimeout(w.t)
@@ -607,6 +618,45 @@ export default function useWebRTC({
     }
   }, [fullReset])
 
+  const abortActiveTransfer = useCallback((reason) => {
+    if (!transferBusyRef.current && !inboundReceiveBusyRef.current) return
+    devLog('[transfer abort]', reason)
+    if (pcTransferAbortTimerRef.current != null) {
+      clearTimeout(pcTransferAbortTimerRef.current)
+      pcTransferAbortTimerRef.current = null
+    }
+    for (const [id, w] of [...fileAckWaitersRef.current.entries()]) {
+      fileAckWaitersRef.current.delete(id)
+      clearTimeout(w.t)
+      w.reject(new Error(reason))
+    }
+    transferBusyRef.current = false
+    inboundReceiveBusyRef.current = false
+    suppressAutoReconnectRef.current = true
+    fullReset({ force: true })
+    suppressAutoReconnectRef.current = false
+    setTransportReady(false)
+    setConnectionState('disconnected')
+    setLinkPhase('idle')
+    onTransferAbortRef.current?.(reason)
+    onConnectionResetRef.current?.()
+  }, [fullReset])
+
+  useEffect(() => {
+    abortActiveTransferRef.current = abortActiveTransfer
+  }, [abortActiveTransfer])
+
+  const scheduleTransferAbortOnPeerDisconnect = useCallback(() => {
+    if (pcTransferAbortTimerRef.current != null) {
+      clearTimeout(pcTransferAbortTimerRef.current)
+    }
+    pcTransferAbortTimerRef.current = window.setTimeout(() => {
+      pcTransferAbortTimerRef.current = null
+      if (!transferBusyRef.current && !inboundReceiveBusyRef.current) return
+      abortActiveTransferRef.current?.('peer-disconnected')
+    }, PEER_DISCONNECT_ABORT_MS)
+  }, [])
+
   /**
    * シグナリングで disconnect を送り、P2P / WS を完全に捨てる。
    * ローカル側の ICE/PC 失敗時は即座に scheduleReconnect（古い PC を抱えたまま待たない）。
@@ -875,7 +925,10 @@ export default function useWebRTC({
         if (wpc.iceConnectionState !== 'failed' && wpc.connectionState !== 'failed') {
           return
         }
-        if (transferBusyRef.current || inboundReceiveBusyRef.current) return
+        if (transferBusyRef.current || inboundReceiveBusyRef.current) {
+          abortActiveTransferRef.current?.('connect-watchdog')
+          return
+        }
         devWarn(`[LynkOS/ICE #${sessionEpoch}] watchdog: ICE/PC failed → 再接続`)
         clearRecoverTimer()
         setConnectionState('reconnecting')
@@ -894,9 +947,19 @@ export default function useWebRTC({
         if (ice === 'checking' || ice === 'disconnected') setLinkPhase('ice')
         if (ice === 'failed') {
           setTransportReady(false)
-          handleSyncDisconnectRef.current?.(false)
+          if (transferBusyRef.current || inboundReceiveBusyRef.current) {
+            abortActiveTransferRef.current?.('ice-failed')
+          } else {
+            handleSyncDisconnectRef.current?.(false)
+          }
         }
-        if (ice === 'disconnected') refreshTransport()
+        if (ice === 'disconnected') {
+          if (transferBusyRef.current || inboundReceiveBusyRef.current) {
+            scheduleTransferAbortOnPeerDisconnect()
+          } else {
+            refreshTransport()
+          }
+        }
       }
       pc.onicegatheringstatechange = () => {
         if (signalingEpochRef.current !== sessionEpoch || pcRef.current !== pc) return
@@ -965,26 +1028,41 @@ export default function useWebRTC({
             clearTimeout(pcDisconnectedTimerRef.current)
             pcDisconnectedTimerRef.current = null
           }
+          if (pcTransferAbortTimerRef.current != null) {
+            clearTimeout(pcTransferAbortTimerRef.current)
+            pcTransferAbortTimerRef.current = null
+          }
           refreshTransport()
         } else if (s === 'failed') {
           setTransportReady(false)
-          handleSyncDisconnectRef.current?.(false)
+          if (transferBusyRef.current || inboundReceiveBusyRef.current) {
+            abortActiveTransferRef.current?.('pc-failed')
+          } else {
+            handleSyncDisconnectRef.current?.(false)
+          }
         } else if (s === 'closed') {
           setTransportReady(false)
-          handleSyncDisconnectRef.current?.(false)
+          if (transferBusyRef.current || inboundReceiveBusyRef.current) {
+            abortActiveTransferRef.current?.('pc-closed')
+          } else {
+            handleSyncDisconnectRef.current?.(false)
+          }
         } else if (s === 'disconnected') {
           setTransportReady(false)
-          if (pcDisconnectedTimerRef.current != null) {
+          if (transferBusyRef.current || inboundReceiveBusyRef.current) {
+            scheduleTransferAbortOnPeerDisconnect()
+          } else if (pcDisconnectedTimerRef.current != null) {
             clearTimeout(pcDisconnectedTimerRef.current)
+          } else {
+            const discEpoch = sessionEpoch
+            pcDisconnectedTimerRef.current = window.setTimeout(() => {
+              pcDisconnectedTimerRef.current = null
+              if (signalingEpochRef.current !== discEpoch) return
+              if (pcRef.current !== pc) return
+              if (pc.connectionState === 'connected') return
+              handleSyncDisconnectRef.current?.(false)
+            }, PEER_DISCONNECT_ABORT_MS)
           }
-          const discEpoch = sessionEpoch
-          pcDisconnectedTimerRef.current = window.setTimeout(() => {
-            pcDisconnectedTimerRef.current = null
-            if (signalingEpochRef.current !== discEpoch) return
-            if (pcRef.current !== pc) return
-            if (pc.connectionState === 'connected') return
-            handleSyncDisconnectRef.current?.(false)
-          }, 550)
         }
       }
 
@@ -1099,6 +1177,10 @@ export default function useWebRTC({
       if (wsPingTimerRef.current != null) {
         clearInterval(wsPingTimerRef.current)
         wsPingTimerRef.current = null
+      }
+      if (transferBusyRef.current || inboundReceiveBusyRef.current) {
+        abortActiveTransferRef.current?.('signaling-closed')
+        return
       }
       if (e.code !== 1000 && targetRef.current &&
           channelRef.current?.readyState !== 'open') {
@@ -1230,10 +1312,16 @@ export default function useWebRTC({
           }
 
         } else if (msg.type === 'disconnect') {
-          handleSyncDisconnectRef.current?.(true)
+          if (transferBusyRef.current || inboundReceiveBusyRef.current) {
+            abortActiveTransferRef.current?.('peer-disconnect')
+          } else {
+            handleSyncDisconnectRef.current?.(true)
+          }
         } else if (msg.type === 'peer-left') {
-          if (transferBusyRef.current || inboundReceiveBusyRef.current) return
-          if (transportReadyRef.current) return
+          if (transferBusyRef.current || inboundReceiveBusyRef.current) {
+            abortActiveTransferRef.current?.('peer-left')
+            return
+          }
           const ch = channelRef.current
           if (ch?.readyState === 'open' || ch?.readyState === 'connecting') return
           const pcLive = pcRef.current
@@ -1404,6 +1492,13 @@ export default function useWebRTC({
             let offset = 0
             while (offset < size) {
               await waitChannelDrain(channel)
+              if (channel.readyState !== 'open') {
+                throw new Error('dc-closed')
+              }
+              const pcNow = pcRef.current
+              if (!pcNow || pcNow.connectionState === 'failed' || pcNow.connectionState === 'closed') {
+                throw new Error('pc-closed')
+              }
               const end = Math.min(offset + CHUNK_SIZE, size)
               const buf = await file.slice(offset, end).arrayBuffer()
               channel.send(buf)

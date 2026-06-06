@@ -4,3 +4,4 @@ daphne>=4.0
 djangorestframework>=3.14
 django-cors-headers>=4.0
 whitenoise>=6.6
+zeroconf>=0.131.0

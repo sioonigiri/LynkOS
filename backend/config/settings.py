@@ -68,7 +68,7 @@ INSTALLED_APPS = [
     'channels',
     'corsheaders',
     'rest_framework',
-    'signaling',
+    'signaling.apps.SignalingConfig',
 ]
 
 MIDDLEWARE = [

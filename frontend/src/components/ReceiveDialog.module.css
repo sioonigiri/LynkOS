@@ -146,39 +146,62 @@
   margin-top: 4px;
 }
 
-.btnReject,
-.btnAccept {
+.actionRow {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   padding: 14px;
   border-radius: var(--radius);
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
   line-height: 1;
-  transition: opacity 0.15s, transform 0.1s;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
 }
 
-.btnReject:active,
-.btnAccept:active {
-  transform: scale(0.97);
+.actionRow:active {
+  transform: scale(0.98);
 }
 
-.btnReject {
+.actionRowNeutral {
   background: var(--surface2);
   color: var(--text-sub);
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
 }
 
-.btnReject:hover {
+.actionRowNeutral:hover {
   background: var(--surface3);
 }
 
-.btnAccept {
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  box-shadow: 0 4px 16px rgba(196, 149, 106, 0.4);
+.actionRowSelected {
+  background: var(--accent-soft, rgba(196, 149, 106, 0.18));
+  color: var(--accent-h, var(--accent));
+  border: 2px solid var(--accent);
+  box-shadow: 0 2px 12px rgba(196, 149, 106, 0.2);
 }
 
-.btnAccept:hover {
-  background: var(--accent-h);
+.actionRowSelected:hover {
+  background: rgba(196, 149, 106, 0.24);
+}
+
+/* 許可: ○（中塗りなし） */
+.circleMark {
+  display: inline-block;
+  width: 1.1em;
+  height: 1.1em;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  box-sizing: border-box;
+  background: transparent;
+  flex-shrink: 0;
+}
+
+/* 拒否: × */
+.rejectMark {
+  display: inline-block;
+  font-size: 1.35em;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
 }

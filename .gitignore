@@ -17,5 +17,11 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 
+# iOS / Xcode
+ios/DerivedData/
+ios/.build/
+ios/**/*.xcuserstate
+ios/**/xcuserdata/
+
 # その他
 *.log

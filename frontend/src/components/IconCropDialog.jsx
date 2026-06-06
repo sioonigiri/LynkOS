@@ -135,6 +135,9 @@ export default function IconCropDialog({ onClose, onApply, initialFile = null })
     canvas.height = VIEW
     const ctx = canvas.getContext('2d')
     if (!ctx) return
+    // JPEG は透過を黒で埋めるため、先に背景を塗ってから円でクリップする
+    ctx.fillStyle = '#fdf8f0'
+    ctx.fillRect(0, 0, VIEW, VIEW)
     ctx.beginPath()
     ctx.arc(VIEW / 2, VIEW / 2, VIEW / 2, 0, Math.PI * 2)
     ctx.closePath()

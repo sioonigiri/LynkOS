@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { getDeviceIconVisual, getDeviceEmoji, MAX_DEVICE_ICON_CHARS } from '../lib/deviceDisplay'
 import IconCropDialog from './IconCropDialog'
 import styles from './SettingsPanel.module.css'
@@ -82,7 +83,12 @@ export default function SettingsPanel({ myDevice, onClose, onSave }) {
           </div>
 
           <div className={styles.devicePreview}>
-            <div className={styles.previewBubble}>
+            <div
+              className={[
+                styles.previewBubble,
+                isCustomPhoto ? styles.previewBubblePhoto : '',
+              ].filter(Boolean).join(' ')}
+            >
               {previewVis.kind === 'url' ? (
                 <img src={previewVis.href} alt="" className={styles.previewIconImg} />
               ) : (
@@ -144,6 +150,10 @@ export default function SettingsPanel({ myDevice, onClose, onSave }) {
           >
             保存
           </button>
+
+          <Link to="/" className={styles.landingLinkBtn} onClick={onClose}>
+            ランディングページに戻る
+          </Link>
         </div>
       </div>
 

@@ -101,16 +101,31 @@ export default function App() {
     incomingQueueRef.current = incomingTransfers
   }, [incomingTransfers])
 
+  /** 送信対象として保持している UI 状態をクリア（成功時は必ずここを通す）。 */
+  const clearOutboundSelection = useCallback(() => {
+    setPickedFile(null)
+    autoSendStartedRef.current = false
+    activeBatchIdsRef.current = null
+  }, [])
+
+  /** 送信成功後: 選択状態と接続フローをまとめてリセット。 */
+  const finishOutboundSendSuccess = useCallback(() => {
+    pendingRequestIdRef.current = null
+    pendingPeerRef.current = null
+    pendingPeerIdRef.current = null
+    clearOutboundSelection()
+    setWebrtcPeer(null)
+    setSendPhase('idle')
+  }, [clearOutboundSelection])
+
   const resetOutboundFlow = useCallback(() => {
     pendingRequestIdRef.current = null
     pendingPeerRef.current = null
     pendingPeerIdRef.current = null
-    setPickedFile(null)
+    clearOutboundSelection()
     setWebrtcPeer(null)
     setSendPhase('idle')
-    autoSendStartedRef.current = false
-    activeBatchIdsRef.current = null
-  }, [])
+  }, [clearOutboundSelection])
 
   const { sendInbox } = useInbox(myDevice?.deviceId ?? '', {
     onTransferRequest: (msg) => {
@@ -251,6 +266,10 @@ export default function App() {
 
   const handleComplete = useCallback((id) => {
     const now = Date.now()
+    const batchIds = activeBatchIdsRef.current
+    if (batchIds?.includes(id)) {
+      clearOutboundSelection()
+    }
     setTransfers((prev) => {
       const next = prev.map((t) =>
         t.id === id ? { ...t, progress: 100, status: 'done', updatedAt: now } : t
@@ -258,7 +277,7 @@ export default function App() {
       queueMicrotask(() => saveTransferLog(next))
       return next
     })
-  }, [])
+  }, [clearOutboundSelection])
 
   const handleReceive = useCallback(
     ({ id, name, size, directSaved, storageKey, chunkCount, mimeType }) => {
@@ -424,7 +443,32 @@ export default function App() {
     }
   }, [])
 
-  const handleFailed = useCallback(() => {}, [])
+  const handleFailed = useCallback(() => {
+    setToast('接続できませんでした')
+    resetOutboundFlow()
+  }, [resetOutboundFlow])
+
+  const handleTransferAbort = useCallback(() => {
+    const ids = activeBatchIdsRef.current
+    if (ids?.length) {
+      setTransfers((prev) =>
+        prev.map((t) =>
+          ids.includes(t.id) ? { ...t, status: 'error', progress: 0, updatedAt: Date.now() } : t
+        )
+      )
+    }
+    setToast('相手が切断しました')
+    resetOutboundFlow()
+  }, [resetOutboundFlow])
+
+  useEffect(() => {
+    if (sendPhase !== 'waiting_response') return undefined
+    const tid = window.setTimeout(() => {
+      setToast('相手からの応答がありませんでした')
+      cancelWaiting()
+    }, 90_000)
+    return () => clearTimeout(tid)
+  }, [sendPhase, cancelWaiting])
 
   const {
     sendFiles,
@@ -436,7 +480,14 @@ export default function App() {
     targetDevice:         webrtcPeer,
     onConnectionReset:     () => {
       setWebrtcPeer(null)
-      setSendPhase((p) => (p === 'transferring' ? p : 'idle'))
+      setSendPhase((p) => {
+        if (p === 'transferring' || p === 'connecting') {
+          autoSendStartedRef.current = false
+          activeBatchIdsRef.current = null
+          return 'idle'
+        }
+        return p
+      })
     },
     onProgress:           handleProgress,
     onComplete:           handleComplete,
@@ -444,11 +495,23 @@ export default function App() {
     onInboundQueueChange: handleInboundQueueChange,
     onReceive:            handleReceive,
     onFailed:             handleFailed,
+    onTransferAbort:      handleTransferAbort,
   })
 
   useEffect(() => {
     if (!transportReady) setReceiveRequest(null)
   }, [transportReady])
+
+  useEffect(() => {
+    if (sendPhase !== 'connecting') return undefined
+    const tid = window.setTimeout(() => {
+      if (!transportReady) {
+        setToast('接続できませんでした')
+        resetOutboundFlow()
+      }
+    }, 120_000)
+    return () => clearTimeout(tid)
+  }, [sendPhase, transportReady, resetOutboundFlow])
 
   /** 受信側はファイル選択がないため、P2P 確立後に接続 UI を外す */
   useEffect(() => {
@@ -488,16 +551,9 @@ export default function App() {
       return t && terminal.includes(t.status)
     })
     if (allDone) {
-      activeBatchIdsRef.current = null
-      setWebrtcPeer(null)
-      setPickedFile(null)
-      setSendPhase('idle')
-      autoSendStartedRef.current = false
-      pendingRequestIdRef.current = null
-      pendingPeerRef.current = null
-      pendingPeerIdRef.current = null
+      finishOutboundSendSuccess()
     }
-  }, [transfers, sendPhase])
+  }, [transfers, sendPhase, finishOutboundSendSuccess])
 
   const displayDevice = myDevice
     ? { ...myDevice, name: myDeviceName ?? myDevice.name }
@@ -509,7 +565,7 @@ export default function App() {
 
   const clearPickedFile = () => {
     if (sendPhase !== 'idle') return
-    setPickedFile(null)
+    clearOutboundSelection()
   }
 
   const sendTransferRequestToDevice = async (sendTarget) => {
@@ -707,7 +763,12 @@ export default function App() {
             onClick={() => setShowSettings(true)}
             title="設定"
           >
-            <span className={styles.myDeviceIcon}>
+            <span
+              className={[
+                styles.myDeviceIcon,
+                myHeaderIcon.kind === 'url' ? styles.myDeviceIconPhoto : '',
+              ].filter(Boolean).join(' ')}
+            >
               {myHeaderIcon.kind === 'url' ? (
                 <img src={myHeaderIcon.href} alt="" className={styles.myDeviceIconImg} />
               ) : (

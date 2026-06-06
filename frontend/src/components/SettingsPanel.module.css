@@ -107,10 +107,16 @@
 }
 
 .previewIconImg {
-  width: 44px;
-  height: 44px;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   object-fit: cover;
+}
+
+.previewBubblePhoto {
+  border: none;
+  box-shadow: none;
+  background: transparent;
 }
 
 .hiddenFileInput {
@@ -233,4 +239,25 @@
   opacity: 0.45;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+.landingLinkBtn {
+  display: block;
+  width: 100%;
+  padding: 13px 16px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-sub);
+  text-decoration: none;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border);
+  background: var(--surface2);
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.landingLinkBtn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }

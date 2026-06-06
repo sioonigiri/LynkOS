@@ -28,11 +28,23 @@ export function ConnectionIncomingDialog({
         </div>
         <p className={styles.peerName}>{senderName}</p>
         <div className={styles.actions}>
-          <button type="button" className={styles.btnRejectSheet} onClick={onReject} aria-label="拒否">
-            ✕
+          <button
+            type="button"
+            className={`${styles.actionRow} ${styles.actionRowNeutral}`}
+            onClick={onReject}
+            aria-label="拒否"
+          >
+            <span className={styles.rejectMark} aria-hidden>×</span>
+            <span>拒否</span>
           </button>
-          <button type="button" className={styles.btnPrimary} onClick={onAccept} aria-label="許可">
-            ✓
+          <button
+            type="button"
+            className={`${styles.actionRow} ${styles.actionRowSelected}`}
+            onClick={onAccept}
+            aria-label="許可"
+          >
+            <span className={styles.circleMark} aria-hidden />
+            <span>許可</span>
           </button>
         </div>
       </div>
