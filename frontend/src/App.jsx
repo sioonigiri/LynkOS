@@ -741,6 +741,9 @@ export default function App() {
 
   const myHeaderIcon = displayDevice ? getDeviceIconVisual(displayDevice) : null
 
+  const hideSupportFab =
+    showSettings || Boolean(receiveRequest) || Boolean(inboxModalRequest) || Boolean(downloadTarget)
+
   return (
     <div className={styles.layout}>
       <header className={styles.header}>
@@ -943,6 +946,12 @@ export default function App() {
             setDeviceProfileRev((n) => n + 1)
           }}
         />
+      )}
+
+      {!hideSupportFab && (
+        <Link to="/support" className={styles.supportFab} aria-label="サポート" title="サポート">
+          ?
+        </Link>
       )}
     </div>
   )

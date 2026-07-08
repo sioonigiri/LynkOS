@@ -4,6 +4,13 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var viewModel: AppViewModel
     @State private var showSettings = false
+    @State private var showClearHistoryConfirm = false
+
+    private var showClearHistoryFAB: Bool {
+        !viewModel.receiveHistory.isEmpty
+            && viewModel.incomingRequest == nil
+            && viewModel.pendingReceive == nil
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -100,6 +107,40 @@ struct ContentView: View {
             .ignoresSafeArea()
             .background(Color.clear)
         }
+        .overlay(alignment: .bottomTrailing) {
+            if showClearHistoryFAB {
+                clearHistoryFAB
+                    .padding(.trailing, 20)
+                    .padding(.bottom, 20)
+                    .transition(.scale(scale: 0.88).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.32, dampingFraction: 0.82), value: showClearHistoryFAB)
+        .confirmationDialog(
+            "転送済みファイルを消去しますか？",
+            isPresented: $showClearHistoryConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("消去", role: .destructive) {
+                viewModel.clearReceiveHistory()
+            }
+            Button("キャンセル", role: .cancel) {}
+        }
+    }
+
+    private var clearHistoryFAB: some View {
+        Button {
+            showClearHistoryConfirm = true
+        } label: {
+            Image(systemName: "trash")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(width: 52, height: 52)
+                .background(LynkOSTheme.accent, in: Circle())
+                .shadow(color: LynkOSTheme.accent.opacity(0.35), radius: 8, y: 4)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("転送済みファイルを消去")
     }
 
     private var headerBar: some View {

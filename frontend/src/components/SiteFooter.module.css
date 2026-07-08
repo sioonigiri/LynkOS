@@ -1,0 +1,38 @@
+.footer {
+  margin-top: auto;
+  padding-top: 32px;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 10px;
+  margin-bottom: 10px;
+}
+
+.link {
+  color: var(--text-sub);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.15s;
+}
+
+.link:hover {
+  color: var(--accent);
+}
+
+.sep {
+  color: var(--border);
+  user-select: none;
+}
+
+.copy {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}

@@ -32,6 +32,8 @@
 		B100000000000023 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100000000000024 /* ShareSheet.swift */; };
 		B100000000000024 /* OutboundFilePayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100000000000025 /* OutboundFilePayload.swift */; };
 		B100000000000025 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100000000000027 /* ShareViewController.swift */; };
+		B100000000000026 /* LynkOSCore in Frameworks */ = {isa = PBXBuildFile; productRef = P100000000000001 /* LynkOSCore */; };
+		B100000000000027 /* LynkOSShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F100000000000026 /* LynkOSShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		B100000000000028 /* ShareExtensionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100000000000031 /* ShareExtensionView.swift */; };
 		B100000000000029 /* ShareExtensionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100000000000032 /* ShareExtensionViewModel.swift */; };
 		B100000000000030 /* SharedAttachmentLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100000000000033 /* SharedAttachmentLoader.swift */; };
@@ -41,47 +43,7 @@
 		B100000000000034 /* OutboundFilePayload+PickedFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100000000000034 /* OutboundFilePayload+PickedFile.swift */; };
 		B100000000000035 /* DeveloperModeAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100000000000035 /* DeveloperModeAccess.swift */; };
 		B100000000000037 /* DocumentExportPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100000000000037 /* DocumentExportPicker.swift */; };
-		B100000000000026 /* LynkOSCore in Frameworks */ = {isa = PBXBuildFile; productRef = P100000000000001 /* LynkOSCore */; };
-		B100000000000027 /* LynkOSShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F100000000000026 /* LynkOSShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
-
-/* Begin PBXFileReference section */
-		F100000000000001 /* LynkOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LynkOSApp.swift; sourceTree = "<group>"; };
-		F100000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		F100000000000003 /* AppViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppViewModel.swift; sourceTree = "<group>"; };
-		F100000000000004 /* ConnectionDebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionDebugView.swift; sourceTree = "<group>"; };
-		F100000000000005 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		F100000000000006 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		F100000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		F100000000000020 /* LynkOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LynkOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		F100000000000008 /* LynkOSTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LynkOSTheme.swift; sourceTree = "<group>"; };
-		F100000000000009 /* LynkOSLogoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LynkOSLogoView.swift; sourceTree = "<group>"; };
-		F100000000000015 /* DeviceVisual.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceVisual.swift; sourceTree = "<group>"; };
-		F100000000000011 /* FilePickPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilePickPanel.swift; sourceTree = "<group>"; };
-		F100000000000012 /* DeviceListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceListView.swift; sourceTree = "<group>"; };
-		F100000000000013 /* DeveloperPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperPanelView.swift; sourceTree = "<group>"; };
-		F100000000000014 /* PickedFileItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickedFileItem.swift; sourceTree = "<group>"; };
-		F100000000000016 /* TransferRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferRequest.swift; sourceTree = "<group>"; };
-		F100000000000017 /* WebRTCTransferSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebRTCTransferSession.swift; sourceTree = "<group>"; };
-		F100000000000018 /* ReceiveRequestDialog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiveRequestDialog.swift; sourceTree = "<group>"; };
-		F100000000000019 /* ImagePreviewHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePreviewHelper.swift; sourceTree = "<group>"; };
-		F100000000000021 /* ReceivedFileItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceivedFileItem.swift; sourceTree = "<group>"; };
-		F100000000000022 /* SaveReceivedFileDialog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveReceivedFileDialog.swift; sourceTree = "<group>"; };
-		F100000000000023 /* TransferStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferStatusView.swift; sourceTree = "<group>"; };
-		F100000000000024 /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
-		F100000000000025 /* OutboundFilePayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutboundFilePayload.swift; sourceTree = "<group>"; };
-		F100000000000026 /* LynkOSShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LynkOSShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		F100000000000027 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
-		F100000000000028 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		F100000000000029 /* LynkOSShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LynkOSShareExtension.entitlements; sourceTree = "<group>"; };
-		F100000000000030 /* LynkOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LynkOS.entitlements; sourceTree = "<group>"; };
-		F100000000000031 /* ShareExtensionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareExtensionView.swift; sourceTree = "<group>"; };
-		F100000000000032 /* ShareExtensionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareExtensionViewModel.swift; sourceTree = "<group>"; };
-		F100000000000033 /* SharedAttachmentLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedAttachmentLoader.swift; sourceTree = "<group>"; };
-		F100000000000034 /* OutboundFilePayload+PickedFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OutboundFilePayload+PickedFile.swift"; sourceTree = "<group>"; };
-		F100000000000035 /* DeveloperModeAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperModeAccess.swift; sourceTree = "<group>"; };
-		F100000000000037 /* DocumentExportPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentExportPicker.swift; sourceTree = "<group>"; };
-/* End PBXFileReference section */
 
 /* Begin PBXContainerItemProxy section */
 		CP10000000000001 /* PBXContainerItemProxy */ = {
@@ -107,22 +69,60 @@
 		};
 /* End PBXCopyFilesBuildPhase section */
 
+/* Begin PBXFileReference section */
+		F100000000000001 /* LynkOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LynkOSApp.swift; sourceTree = "<group>"; };
+		F100000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		F100000000000003 /* AppViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppViewModel.swift; sourceTree = "<group>"; };
+		F100000000000004 /* ConnectionDebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionDebugView.swift; sourceTree = "<group>"; };
+		F100000000000005 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		F100000000000006 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F100000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		F100000000000008 /* LynkOSTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LynkOSTheme.swift; sourceTree = "<group>"; };
+		F100000000000009 /* LynkOSLogoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LynkOSLogoView.swift; sourceTree = "<group>"; };
+		F100000000000011 /* FilePickPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilePickPanel.swift; sourceTree = "<group>"; };
+		F100000000000012 /* DeviceListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceListView.swift; sourceTree = "<group>"; };
+		F100000000000013 /* DeveloperPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperPanelView.swift; sourceTree = "<group>"; };
+		F100000000000014 /* PickedFileItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickedFileItem.swift; sourceTree = "<group>"; };
+		F100000000000015 /* DeviceVisual.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceVisual.swift; sourceTree = "<group>"; };
+		F100000000000016 /* TransferRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferRequest.swift; sourceTree = "<group>"; };
+		F100000000000017 /* WebRTCTransferSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebRTCTransferSession.swift; sourceTree = "<group>"; };
+		F100000000000018 /* ReceiveRequestDialog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiveRequestDialog.swift; sourceTree = "<group>"; };
+		F100000000000019 /* ImagePreviewHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePreviewHelper.swift; sourceTree = "<group>"; };
+		F100000000000020 /* LynkOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LynkOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F100000000000021 /* ReceivedFileItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceivedFileItem.swift; sourceTree = "<group>"; };
+		F100000000000022 /* SaveReceivedFileDialog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveReceivedFileDialog.swift; sourceTree = "<group>"; };
+		F100000000000023 /* TransferStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferStatusView.swift; sourceTree = "<group>"; };
+		F100000000000024 /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
+		F100000000000025 /* OutboundFilePayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutboundFilePayload.swift; sourceTree = "<group>"; };
+		F100000000000026 /* LynkOSShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LynkOSShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		F100000000000027 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		F100000000000028 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		F100000000000029 /* LynkOSShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LynkOSShareExtension.entitlements; sourceTree = "<group>"; };
+		F100000000000030 /* LynkOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LynkOS.entitlements; sourceTree = "<group>"; };
+		F100000000000031 /* ShareExtensionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareExtensionView.swift; sourceTree = "<group>"; };
+		F100000000000032 /* ShareExtensionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareExtensionViewModel.swift; sourceTree = "<group>"; };
+		F100000000000033 /* SharedAttachmentLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedAttachmentLoader.swift; sourceTree = "<group>"; };
+		F100000000000034 /* OutboundFilePayload+PickedFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OutboundFilePayload+PickedFile.swift"; sourceTree = "<group>"; };
+		F100000000000035 /* DeveloperModeAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperModeAccess.swift; sourceTree = "<group>"; };
+		F100000000000037 /* DocumentExportPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentExportPicker.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
 /* Begin PBXFrameworksBuildPhase section */
-		C100000000000005 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				B100000000000026 /* LynkOSCore in Frameworks */,
-				B100000000000031 /* WebRTC in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		C100000000000002 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				B100000000000007 /* LynkOSCore in Frameworks */,
 				B100000000000018 /* WebRTC in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C100000000000005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B100000000000026 /* LynkOSCore in Frameworks */,
+				B100000000000031 /* WebRTC in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -137,14 +137,6 @@
 				G100000000000003 /* LynkOSCore */,
 				G100000000000004 /* Products */,
 			);
-			sourceTree = "<group>";
-		};
-		G100000000000035 /* Config */ = {
-			isa = PBXGroup;
-			children = (
-				F100000000000035 /* DeveloperModeAccess.swift */,
-			);
-			path = Config;
 			sourceTree = "<group>";
 		};
 		G100000000000002 /* LynkOS */ = {
@@ -274,29 +266,17 @@
 			path = Helpers;
 			sourceTree = "<group>";
 		};
+		G100000000000035 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				F100000000000035 /* DeveloperModeAccess.swift */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		T100000000000002 /* LynkOSShareExtension */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = L100000000000005 /* Build configuration list for PBXNativeTarget "LynkOSShareExtension" */;
-			buildPhases = (
-				C100000000000004 /* Sources */,
-				C100000000000005 /* Frameworks */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = LynkOSShareExtension;
-			packageProductDependencies = (
-				P100000000000001 /* LynkOSCore */,
-				P100000000000002 /* WebRTC */,
-			);
-			productName = LynkOSShareExtension;
-			productReference = F100000000000026 /* LynkOSShareExtension.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
 		T100000000000001 /* LynkOS */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = L100000000000002 /* Build configuration list for PBXNativeTarget "LynkOS" */;
@@ -319,6 +299,26 @@
 			productName = LynkOS;
 			productReference = F100000000000020 /* LynkOS.app */;
 			productType = "com.apple.product-type.application";
+		};
+		T100000000000002 /* LynkOSShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = L100000000000005 /* Build configuration list for PBXNativeTarget "LynkOSShareExtension" */;
+			buildPhases = (
+				C100000000000004 /* Sources */,
+				C100000000000005 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = LynkOSShareExtension;
+			packageProductDependencies = (
+				P100000000000001 /* LynkOSCore */,
+				P100000000000002 /* WebRTC */,
+			);
+			productName = LynkOSShareExtension;
+			productReference = F100000000000026 /* LynkOSShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -374,19 +374,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		C100000000000004 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				B100000000000025 /* ShareViewController.swift in Sources */,
-				B100000000000028 /* ShareExtensionView.swift in Sources */,
-				B100000000000029 /* ShareExtensionViewModel.swift in Sources */,
-				B100000000000030 /* SharedAttachmentLoader.swift in Sources */,
-				B100000000000032 /* WebRTCTransferSession.swift in Sources */,
-				B100000000000033 /* OutboundFilePayload.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		C100000000000001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -415,6 +402,19 @@
 				B100000000000034 /* OutboundFilePayload+PickedFile.swift in Sources */,
 				B100000000000035 /* DeveloperModeAccess.swift in Sources */,
 				B100000000000037 /* DocumentExportPicker.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C100000000000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B100000000000025 /* ShareViewController.swift in Sources */,
+				B100000000000028 /* ShareExtensionView.swift in Sources */,
+				B100000000000029 /* ShareExtensionViewModel.swift in Sources */,
+				B100000000000030 /* SharedAttachmentLoader.swift in Sources */,
+				B100000000000032 /* WebRTCTransferSession.swift in Sources */,
+				B100000000000033 /* OutboundFilePayload.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -542,6 +542,7 @@
 				CODE_SIGN_ENTITLEMENTS = LynkOS/LynkOS.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4TKDWFY5W2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = LynkOS/Info.plist;
@@ -550,7 +551,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = com.lynkos.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -568,6 +569,7 @@
 				CODE_SIGN_ENTITLEMENTS = LynkOS/LynkOS.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4TKDWFY5W2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = LynkOS/Info.plist;
@@ -576,7 +578,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = com.lynkos.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";

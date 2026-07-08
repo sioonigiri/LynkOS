@@ -805,6 +805,11 @@ final class AppViewModel: ObservableObject {
         }
     }
 
+    /// 転送済み一覧（メタデータのみ）をすべて消去する。端末内の実ファイルは触らない。
+    func clearReceiveHistory() {
+        receiveHistory = []
+    }
+
     private func requestPhotoLibraryAddAccess() async -> Bool {
         let status = PHPhotoLibrary.authorizationStatus(for: .addOnly)
         switch status {

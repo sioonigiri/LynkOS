@@ -178,12 +178,3 @@
   color: var(--text-muted);
   text-align: center;
 }
-
-.footer {
-  margin-top: auto;
-  padding-top: 32px;
-  text-align: center;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  line-height: 1.6;
-}

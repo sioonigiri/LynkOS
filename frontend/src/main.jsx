@@ -4,6 +4,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 import LandingPage from './LandingPage.jsx'
+import SupportPage from './pages/SupportPage.jsx'
+import PrivacyPage from './pages/PrivacyPage.jsx'
 import {
   applyLongAbsenceResetIfNeeded,
   clearLynkOsCaches,
@@ -34,6 +36,8 @@ createRoot(document.getElementById('root')).render(
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/support" element={<SupportPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/app" element={<App />} />
       </Routes>
     </BrowserRouter>

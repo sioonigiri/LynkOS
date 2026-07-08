@@ -1,0 +1,244 @@
+.article {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pageHeader {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 22px;
+  box-shadow: var(--shadow);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.title {
+  margin: 0 0 14px;
+  font-size: clamp(1.5rem, 4.5vw, 1.875rem);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.intro {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.8;
+  color: var(--text-sub);
+}
+
+.block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 20px;
+  box-shadow: var(--shadow);
+}
+
+.blockTitle {
+  margin: 0 0 16px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ─── 使い方 ─── */
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.stepNum {
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 50%;
+}
+
+.stepText {
+  margin: 0;
+  padding-top: 0.12em;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+/* ─── FAQ ─── */
+.faqList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.faqItem {
+  padding: 16px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.faqQuestion {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0 0 10px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.faqMark {
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 6px;
+}
+
+.faqAnswer {
+  padding-left: 2.125rem;
+}
+
+.faqAnswerText {
+  margin: 0 0 8px;
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: var(--text-sub);
+}
+
+.faqAnswerText:last-child {
+  margin-bottom: 0;
+}
+
+.faqBullets {
+  margin: 0;
+  padding-left: 1.15rem;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+.faqBullets li + li {
+  margin-top: 6px;
+}
+
+/* ─── お問い合わせ ─── */
+.contactBlock {
+  background: var(--accent-soft);
+  border: 1px solid rgba(196, 149, 106, 0.35);
+  border-radius: var(--radius);
+  padding: 22px 20px;
+  text-align: center;
+}
+
+.contactBlock .blockTitle {
+  margin-bottom: 10px;
+}
+
+.contactLead {
+  margin: 0 0 16px;
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: var(--text-sub);
+}
+
+.mailButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  padding: 12px 18px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #fff;
+  text-decoration: none;
+  word-break: break-all;
+  background: var(--accent);
+  border-radius: 999px;
+  box-shadow: 0 4px 16px rgba(196, 149, 106, 0.35);
+  transition: background 0.15s, transform 0.12s;
+}
+
+.mailButton:hover {
+  background: var(--accent-h);
+}
+
+.mailButton:active {
+  transform: scale(0.98);
+}
+
+.contactNote {
+  margin: 14px 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.backRow {
+  margin: 4px 0 0;
+  text-align: center;
+}
+
+.backLink {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-sub);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.backLink:hover {
+  color: var(--accent);
+}
+
+@media (min-width: 520px) {
+  .article {
+    gap: 24px;
+  }
+
+  .pageHeader,
+  .block,
+  .contactBlock {
+    padding: 28px 26px;
+  }
+}

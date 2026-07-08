@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import SiteFooter from './components/SiteFooter'
+import { PAGE_METADATA, usePageMetadata } from './lib/usePageMetadata'
 import styles from './LandingPage.module.css'
 
 /**
@@ -61,9 +63,7 @@ function StepLine({ n, text }) {
 }
 
 export default function LandingPage() {
-  useEffect(() => {
-    document.title = 'LynkOS'
-  }, [])
+  usePageMetadata(PAGE_METADATA.landing)
 
   return (
     <div className={styles.page}>
@@ -109,9 +109,7 @@ export default function LandingPage() {
         </ol>
       </section>
 
-      <footer className={styles.footer}>
-        <p>LynkOS</p>
-      </footer>
+      <SiteFooter />
     </div>
   )
 }

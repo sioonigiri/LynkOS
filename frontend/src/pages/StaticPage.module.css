@@ -1,0 +1,95 @@
+.article {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 22px;
+  box-shadow: var(--shadow);
+}
+
+.title {
+  font-size: clamp(1.5rem, 4.5vw, 1.875rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  margin-bottom: 24px;
+  line-height: 1.35;
+}
+
+.section {
+  margin-bottom: 28px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.sectionTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.subTitle {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 18px 0 8px;
+  line-height: 1.5;
+}
+
+.lead {
+  font-size: 0.9375rem;
+  line-height: 1.75;
+  color: var(--text-sub);
+  margin: 0 0 12px;
+}
+
+.bodyText {
+  font-size: 0.9375rem;
+  line-height: 1.75;
+  color: var(--text);
+  margin: 0 0 12px;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 24px 0;
+}
+
+.list {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.9375rem;
+  line-height: 1.75;
+  color: var(--text);
+}
+
+.list li + li {
+  margin-top: 6px;
+}
+
+.orderedList {
+  margin: 0;
+  padding-left: 1.35rem;
+  font-size: 0.9375rem;
+  line-height: 1.75;
+  color: var(--text);
+}
+
+.orderedList li + li {
+  margin-top: 8px;
+}
+
+.mailLink {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.mailLink:hover {
+  text-decoration: underline;
+}
