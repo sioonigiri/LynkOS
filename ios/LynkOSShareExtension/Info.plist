@@ -20,6 +20,8 @@
 	<string>0.1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>NSCameraUsageDescription</key>
+	<string>このアプリはカメラで撮影やQRコード読み取りを行いません。ファイル転送に利用している通信ライブラリ（WebRTC）がシステム上カメラAPIを参照するため、この説明文が必要です。</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_lynkos._tcp</string>

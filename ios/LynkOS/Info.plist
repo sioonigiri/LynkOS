@@ -8,6 +8,8 @@
 	<string>LynkOS</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -22,22 +24,26 @@
 	<string>1</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>LynkosDefaultServerOrigin</key>
+	<string>https://lynkos-f7xf.onrender.com</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>送信する写真やアイコン画像を選択するために写真ライブラリへアクセスします。</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>受信した写真や動画を写真アプリに保存するために使用します。</string>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>同一 Wi-Fi 上の PC や iPhone とファイルを共有するために、ローカルネットワークへ接続します。</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_lynkos._tcp</string>
 		<string>_lynkos-hub._tcp</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>このアプリはカメラで撮影やQRコード読み取りを行いません。ファイル転送に利用している通信ライブラリ（WebRTC）がシステム上カメラAPIを参照するため、この説明文が必要です。</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>同一 Wi-Fi 上の PC や iPhone とファイルを共有するために、ローカルネットワークへ接続します。</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>受信した写真や動画を写真アプリに保存するために使用します。</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>送信する写真やアイコン画像を選択するために写真ライブラリへアクセスします。</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
