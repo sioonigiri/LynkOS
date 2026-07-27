@@ -159,7 +159,9 @@ final class AppViewModel: ObservableObject {
         deviceName = UserDefaults.standard.string(forKey: Self.deviceNameKey) ?? UIDevice.current.name
     }
 
-    /// 接続に使うシグナリング URL（デベロッパー手動 > Bonjour Hub > 同梱既定 > 保存済み）。
+    /// 接続に使うシグナリング URL。
+    /// - Release: 同梱クラウド > Bonjour Hub > 保存済み（Web 版と同一サーバー）
+    /// - DEBUG: デベロッパー手動 > Bonjour Hub > 同梱 > 保存済み
     var resolvedConfig: ServerConfig {
         #if targetEnvironment(simulator)
         return ServerConfig(httpOrigin: serverOriginInput)
@@ -172,6 +174,10 @@ final class AppViewModel: ObservableObject {
                     return config
                 }
             }
+        }
+        if ServerOriginPolicy.prefersBundledCloudOverLanHub,
+           let bundled = ServerConfig.bundledDefaultOrigin {
+            return ServerConfig(httpOrigin: bundled)
         }
         if let discovered = discoveredHubOrigin {
             return ServerConfig(httpOrigin: discovered)
@@ -303,6 +309,12 @@ final class AppViewModel: ObservableObject {
         #if targetEnvironment(simulator)
         return
         #else
+        if ServerOriginPolicy.prefersBundledCloudOverLanHub {
+            if let bundled = ServerConfig.bundledDefaultOrigin {
+                hubDiscoveryHint = "Hub: \(bundled)"
+            }
+            return
+        }
         hubDiscovery.start { [weak self] hubs in
             Task { @MainActor in
                 guard let self else { return }

@@ -77,8 +77,13 @@ final class ShareExtensionViewModel: ObservableObject {
 
         var config = AppGroupSettings.loadServerConfig()
         if !config.isConfigured || config.isLoopback {
-            if let hub = await BonjourHubDiscovery.discoverFirstHub() {
+            if ServerOriginPolicy.prefersBundledCloudOverLanHub,
+               let bundled = ServerConfig.bundledDefaultOrigin {
+                config = ServerConfig(httpOrigin: bundled)
+            } else if let hub = await BonjourHubDiscovery.discoverFirstHub() {
                 config = ServerConfig(httpOrigin: hub.httpOrigin)
+            } else if let bundled = ServerConfig.bundledDefaultOrigin {
+                config = ServerConfig(httpOrigin: bundled)
             } else {
                 screenState = .needsMainAppSetup
                 return

@@ -2,7 +2,8 @@ import json
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 
-from signaling.presence_state import PRESENCE_GROUP, merge_from_ws_device_payload
+from signaling.presence_state import merge_from_ws_device_payload, presence_group_for
+from signaling.network import client_ip_from_scope
 
 # ルームごとに接続中の channel_name を管理
 # { room_group_name: [channel_name, ...] }
@@ -180,11 +181,13 @@ class PresenceConsumer(AsyncWebsocketConsumer):
     """
 
     async def connect(self):
-        await self.channel_layer.group_add(PRESENCE_GROUP, self.channel_name)
+        self.client_ip = client_ip_from_scope(self.scope)
+        self.presence_group = presence_group_for(self.client_ip)
+        await self.channel_layer.group_add(self.presence_group, self.channel_name)
         await self.accept()
 
     async def disconnect(self, close_code):
-        await self.channel_layer.group_discard(PRESENCE_GROUP, self.channel_name)
+        await self.channel_layer.group_discard(self.presence_group, self.channel_name)
 
     async def receive(self, text_data):
         try:
@@ -201,11 +204,11 @@ class PresenceConsumer(AsyncWebsocketConsumer):
         dev = data.get('device')
         if not isinstance(dev, dict):
             return
-        public = await sync_to_async(merge_from_ws_device_payload)(dev)
+        public = await sync_to_async(merge_from_ws_device_payload)(dev, self.client_ip)
         if not public:
             return
         await self.channel_layer.group_send(
-            PRESENCE_GROUP,
+            self.presence_group,
             {
                 'type': 'presence_device_info',
                 'device': public,

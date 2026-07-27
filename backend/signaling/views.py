@@ -4,21 +4,27 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 
 from signaling import presence_state
+from signaling.network import client_ip_from_request
+
+
 class DeviceListView(APIView):
     def get(self, request):
-        return Response(presence_state.active_devices_public())
+        client_ip = client_ip_from_request(request)
+        return Response(presence_state.active_devices_public(for_client_ip=client_ip))
 
     def post(self, request):
         device_id = request.data.get('deviceId')
         if not device_id:
             return Response({'error': 'deviceId is required'}, status=400)
 
+        client_ip = client_ip_from_request(request)
         presence_state.register_from_http(
             device_id,
             request.data.get('name', '不明なデバイス'),
             request.data.get('type', 'unknown'),
             request.data.get('platform', ''),
             request.data.get('icon'),
+            client_ip=client_ip,
         )
         return Response({'status': 'ok'})
 

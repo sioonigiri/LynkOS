@@ -17,11 +17,13 @@
 	<key>CFBundlePackageType</key>
 	<string>XPC!</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.1.0</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>NSCameraUsageDescription</key>
 	<string>このアプリはカメラで撮影やQRコード読み取りを行いません。ファイル転送に利用している通信ライブラリ（WebRTC）がシステム上カメラAPIを参照するため、この説明文が必要です。</string>
+	<key>LynkosDefaultServerOrigin</key>
+	<string>https://lynkos-f7xf.onrender.com</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_lynkos._tcp</string>

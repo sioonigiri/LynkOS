@@ -4,6 +4,7 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var viewModel: AppViewModel
     @State private var showSettings = false
+    @State private var showSupport = false
     @State private var showClearHistoryConfirm = false
 
     private var showClearHistoryFAB: Bool {
@@ -74,6 +75,12 @@ struct ContentView: View {
             SettingsView()
                 .environmentObject(viewModel)
         }
+        .sheet(isPresented: $showSupport) {
+            NavigationStack {
+                SupportView()
+            }
+            .presentationDragIndicator(.visible)
+        }
         .overlay {
             if let request = viewModel.incomingRequest {
                 ReceiveRequestDialog(
@@ -107,6 +114,11 @@ struct ContentView: View {
             .ignoresSafeArea()
             .background(Color.clear)
         }
+        .overlay(alignment: .bottomLeading) {
+            supportFAB
+                .padding(.leading, 20)
+                .padding(.bottom, 20)
+        }
         .overlay(alignment: .bottomTrailing) {
             if showClearHistoryFAB {
                 clearHistoryFAB
@@ -126,6 +138,21 @@ struct ContentView: View {
             }
             Button("キャンセル", role: .cancel) {}
         }
+    }
+
+    private var supportFAB: some View {
+        Button {
+            showSupport = true
+        } label: {
+            Text("?")
+                .font(.body.weight(.bold))
+                .foregroundStyle(.white)
+                .frame(width: 52, height: 52)
+                .background(LynkOSTheme.accent, in: Circle())
+                .shadow(color: LynkOSTheme.accent.opacity(0.35), radius: 8, y: 4)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("サポート")
     }
 
     private var clearHistoryFAB: some View {

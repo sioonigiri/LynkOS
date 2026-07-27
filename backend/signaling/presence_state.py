@@ -1,6 +1,8 @@
 """
 近傍デバイス一覧のメモリ内レジストリ。
 HTTP POST と Presence WebSocket（device-info）の両方から更新する。
+
+同一 Wi-Fi 上の端末のみ相互に見えるよう、公開 IP（_client_ip）でスコープする。
 """
 import time
 from typing import Optional
@@ -16,28 +18,49 @@ ICON_MAX_LEN = 400_000
 _online_devices: dict[str, dict] = {}
 
 
-def _notify_devices_changed():
+def presence_group_for(client_ip: str) -> str:
+    """Presence 通知用の channel group 名（IP ごとに分離）。"""
+    if not client_ip:
+        return PRESENCE_GROUP
+    safe = client_ip.replace(':', '_')
+    return f'{PRESENCE_GROUP}_{safe}'
+
+
+def _notify_devices_changed(client_ip: str = ''):
     try:
         layer = get_channel_layer()
         if layer:
             async_to_sync(layer.group_send)(
-                PRESENCE_GROUP,
+                presence_group_for(client_ip),
                 {'type': 'presence_ping'},
             )
     except Exception:
         pass
 
 
-def _active_devices():
+def _active_devices(for_client_ip: Optional[str] = None):
     now = time.time()
-    return [d for d in _online_devices.values() if now - d['_ts'] < DEVICE_TTL]
+    devices = [d for d in _online_devices.values() if now - d['_ts'] < DEVICE_TTL]
+    if for_client_ip:
+        devices = [d for d in devices if d.get('_client_ip') == for_client_ip]
+    return devices
 
 
-def active_devices_public():
-    return [{k: v for k, v in d.items() if k != '_ts'} for d in _active_devices()]
+def active_devices_public(for_client_ip: Optional[str] = None):
+    return [
+        {k: v for k, v in d.items() if not k.startswith('_')}
+        for d in _active_devices(for_client_ip)
+    ]
 
 
-def register_from_http(device_id: str, name, type_, platform, icon_raw):
+def register_from_http(
+    device_id: str,
+    name,
+    type_,
+    platform,
+    icon_raw,
+    client_ip: str = '',
+):
     if isinstance(icon_raw, str):
         icon = icon_raw.strip()[:ICON_MAX_LEN]
     else:
@@ -48,17 +71,19 @@ def register_from_http(device_id: str, name, type_, platform, icon_raw):
         'type': type_ if isinstance(type_, str) else 'unknown',
         'platform': platform if isinstance(platform, str) else '',
         **({'icon': icon} if icon else {}),
+        '_client_ip': client_ip,
         '_ts': time.time(),
     }
-    _notify_devices_changed()
+    _notify_devices_changed(client_ip)
 
 
 def remove_device(device_id: str):
-    _online_devices.pop(device_id, None)
-    _notify_devices_changed()
+    existing = _online_devices.pop(device_id, None)
+    client_ip = existing.get('_client_ip', '') if existing else ''
+    _notify_devices_changed(client_ip)
 
 
-def merge_from_ws_device_payload(dev: dict) -> Optional[dict]:
+def merge_from_ws_device_payload(dev: dict, client_ip: str = '') -> Optional[dict]:
     """
     クライアントからの device-info をマージし、ブロードキャスト用の公開 dict を返す。
     deviceId または id を受け付ける。
@@ -92,6 +117,7 @@ def merge_from_ws_device_payload(dev: dict) -> Optional[dict]:
         'name': name,
         'type': type_,
         'platform': platform,
+        '_client_ip': client_ip or existing.get('_client_ip', ''),
         '_ts': time.time(),
     }
 
@@ -107,5 +133,5 @@ def merge_from_ws_device_payload(dev: dict) -> Optional[dict]:
         entry['icon'] = existing['icon']
 
     _online_devices[device_id] = entry
-    public = {k: v for k, v in entry.items() if k != '_ts'}
+    public = {k: v for k, v in entry.items() if not k.startswith('_')}
     return public

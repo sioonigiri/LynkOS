@@ -121,3 +121,15 @@ public struct ServerConfig: Sendable, Equatable {
         return origin
     }
 }
+
+/// 本番 / 開発で Hub URL の優先順位を切り替える。
+public enum ServerOriginPolicy {
+    /// App Store 版は Web 版と同じクラウド Hub を使う（LAN Bonjour Hub より同梱 URL を優先）。
+    public static var prefersBundledCloudOverLanHub: Bool {
+        #if DEBUG
+        return false
+        #else
+        return ServerConfig.bundledDefaultOrigin != nil
+        #endif
+    }
+}
