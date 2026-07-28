@@ -55,6 +55,7 @@ struct ContentView: View {
                         devices: viewModel.remoteDevices,
                         isOffline: viewModel.isServerOffline,
                         isSearching: viewModel.isSearchingDevices,
+                        isRefreshing: viewModel.isRefreshingDevices,
                         disabled: viewModel.sendUiBusy,
                         flashDeviceId: viewModel.flashDeviceId,
                         onSelect: { device in

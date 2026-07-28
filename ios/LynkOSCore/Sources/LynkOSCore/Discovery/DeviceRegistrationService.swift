@@ -43,6 +43,7 @@ public struct DeviceRegistrationService: Sendable {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = body
+        request.timeoutInterval = 45
         do {
             let (_, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse else {
@@ -62,8 +63,10 @@ public struct DeviceRegistrationService: Sendable {
         guard let url = config.apiDevicesURL else {
             throw DeviceRegistrationError.invalidURL
         }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 45
         do {
-            let (data, response) = try await session.data(from: url)
+            let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse else {
                 throw DeviceRegistrationError.httpStatus(-1)
             }

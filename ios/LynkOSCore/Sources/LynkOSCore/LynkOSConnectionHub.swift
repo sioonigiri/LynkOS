@@ -140,6 +140,11 @@ public final class LynkOSConnectionHub: @unchecked Sendable {
         return all.filter { $0.deviceId != device.deviceId }
     }
 
+    /// Pull-to-refresh 等で HTTP 一覧取得前に端末登録を更新する。
+    public func refreshRegistration() async {
+        await heartbeat()
+    }
+
     public func currentDevice() -> DeviceInfo? {
         device
     }

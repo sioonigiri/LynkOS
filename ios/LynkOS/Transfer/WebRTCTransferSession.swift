@@ -57,6 +57,8 @@ final class WebRTCTransferSession: NSObject {
     private static let peerDisconnectGraceNanoseconds: UInt64 = 550_000_000
 
     private var sessionEnded = false
+    /// 転送成功後の相手側 teardown（シグナリング切断など）を失敗扱いにしない。
+    private var sessionSucceeded = false
     private var peerDisconnectDebounceTask: Task<Void, Never>?
     private var fileRequestResponseTimeoutTask: Task<Void, Never>?
     private var receiveMeta: FileReceiveState?
@@ -88,6 +90,7 @@ final class WebRTCTransferSession: NSObject {
     }
 
     func disconnect() {
+        sessionEnded = true
         tearDownConnection()
         sessionMode = .receive
     }
@@ -128,6 +131,7 @@ final class WebRTCTransferSession: NSObject {
         tearDownConnection()
         sessionMode = mode
         sessionEnded = false
+        sessionSucceeded = false
         self.myId = myId
         self.peerId = peerId
         self.polite = myId > peerId
@@ -164,7 +168,7 @@ final class WebRTCTransferSession: NSObject {
             },
             onStateChange: { [weak self] state in
                 Task { @MainActor in
-                    guard let self, !self.sessionEnded else { return }
+                    guard let self, !self.sessionEnded, !self.sessionSucceeded else { return }
                     if state == .connected, !self.polite {
                         self.sendOfferIfNeeded()
                     } else if state == .disconnected || state == .reconnecting {
@@ -174,7 +178,7 @@ final class WebRTCTransferSession: NSObject {
             },
             onError: { [weak self] message in
                 Task { @MainActor in
-                    guard let self, !self.sessionEnded else { return }
+                    guard let self, !self.sessionEnded, !self.sessionSucceeded else { return }
                     self.endSessionWithFailure(message)
                 }
             }
@@ -200,8 +204,15 @@ final class WebRTCTransferSession: NSObject {
         return factory.peerConnection(with: config, constraints: constraints, delegate: self)!
     }
 
+    private func markSessionCompleted() {
+        sessionSucceeded = true
+        sessionEnded = true
+        peerDisconnectDebounceTask?.cancel()
+        peerDisconnectDebounceTask = nil
+    }
+
     private func endSessionWithFailure(_ message: String) {
-        guard !sessionEnded else { return }
+        guard !sessionEnded, !sessionSucceeded else { return }
         sessionEnded = true
         peerDisconnectDebounceTask?.cancel()
         peerDisconnectDebounceTask = nil
@@ -387,6 +398,7 @@ final class WebRTCTransferSession: NSObject {
             }
         case "file-received-ack":
             if let id = json["id"] as? String, id == currentSendId {
+                markSessionCompleted()
                 fileAckContinuation?.resume()
                 fileAckContinuation = nil
             }
@@ -454,6 +466,9 @@ final class WebRTCTransferSession: NSObject {
 
         do {
             try await sendFileChunks(file)
+            if !sessionSucceeded {
+                markSessionCompleted()
+            }
             delegate?.transferSession(
                 self,
                 didCompleteSend: file.name,
@@ -629,6 +644,7 @@ final class WebRTCTransferSession: NSObject {
         }
 
         let reportedSize = meta.size > 0 ? meta.size : finalReceivedSize
+        markSessionCompleted()
         delegate?.transferSession(
             self,
             didCompleteReceive: meta.name,
@@ -670,7 +686,7 @@ extension WebRTCTransferSession: RTCPeerConnectionDelegate {
 
     nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
         Task { @MainActor in
-            guard !sessionEnded, self.peerConnection === peerConnection else { return }
+            guard !sessionEnded, !sessionSucceeded, self.peerConnection === peerConnection else { return }
             switch newState {
             case .failed:
                 endSessionWithFailure("接続が切断されました")
@@ -713,7 +729,7 @@ extension WebRTCTransferSession: RTCPeerConnectionDelegate {
 
     nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCPeerConnectionState) {
         Task { @MainActor in
-            guard !sessionEnded, self.peerConnection === peerConnection else { return }
+            guard !sessionEnded, !sessionSucceeded, self.peerConnection === peerConnection else { return }
             switch newState {
             case .failed, .closed:
                 endSessionWithFailure("接続が切断されました")
@@ -739,7 +755,7 @@ extension WebRTCTransferSession: RTCDataChannelDelegate {
                 }
                 self.onDataChannelReady()
             } else if dataChannel.readyState == .closed || dataChannel.readyState == .closing {
-                if self.isTransferInProgress() {
+                if !self.sessionEnded, !self.sessionSucceeded, self.isTransferInProgress() {
                     self.endSessionWithFailure("相手が切断しました")
                 }
             }

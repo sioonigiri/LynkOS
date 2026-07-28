@@ -128,7 +128,9 @@ final class AppViewModel: ObservableObject {
     }
 
     var isSearchingDevices: Bool {
-        !isServerOffline && status.presence == .connected
+        (status.presence == .connected || status.presence == .reconnecting
+            || status.inbox == .connected || status.inbox == .reconnecting)
+            && !isServerOffline
     }
 
     var incomingQueueCount: Int {
@@ -345,13 +347,34 @@ final class AppViewModel: ObservableObject {
     func refreshDevices() async {
         isRefreshingDevices = true
         defer { isRefreshingDevices = false }
-        do {
-            remoteDevices = try await hub.fetchRemoteDevices()
-            isServerOffline = false
+
+        await hub.refreshRegistration()
+
+        var lastError: Error?
+        for attempt in 0 ..< 3 {
+            do {
+                remoteDevices = try await hub.fetchRemoteDevices()
+                bootstrapError = nil
+                updateOfflineState()
+                return
+            } catch {
+                lastError = error
+                if attempt < 2 {
+                    try? await Task.sleep(nanoseconds: UInt64((attempt + 1) * 1_500_000_000))
+                }
+            }
+        }
+
+        let wsConnected = status.presence == .connected || status.inbox == .connected
+        let wsReconnecting = status.presence == .reconnecting || status.inbox == .reconnecting
+        if wsConnected || wsReconnecting {
+            // HTTP だけ一時失敗（Render 起動待ち等）— 一覧は維持しオフライン表示にしない
+            showToast("一覧の更新に失敗しました。接続は維持されています")
             bootstrapError = nil
-        } catch {
+            updateOfflineState()
+        } else {
             isServerOffline = true
-            bootstrapError = "デバイス一覧: \(error.localizedDescription)"
+            bootstrapError = "デバイス一覧: \(lastError?.localizedDescription ?? "不明")"
         }
     }
 

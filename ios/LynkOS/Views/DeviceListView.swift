@@ -5,6 +5,7 @@ struct DeviceListView: View {
     let devices: [RemoteDevice]
     let isOffline: Bool
     let isSearching: Bool
+    let isRefreshing: Bool
     let disabled: Bool
     let flashDeviceId: String?
     let onSelect: (RemoteDevice) -> Void
@@ -18,7 +19,8 @@ struct DeviceListView: View {
             if isOffline {
                 emptyState(icon: "⚠️", title: "オフライン", animateRadar: false)
             } else if devices.isEmpty {
-                emptyState(icon: "📡", title: isSearching ? "検索中" : "検索中", animateRadar: true)
+                let title = isRefreshing ? "更新中…" : (isSearching ? "検索中" : "検索中")
+                emptyState(icon: "📡", title: title, animateRadar: isSearching || isRefreshing)
             } else {
                 LazyVGrid(columns: columns, spacing: 16) {
                     ForEach(Array(devices.enumerated()), id: \.element.id) { index, device in
