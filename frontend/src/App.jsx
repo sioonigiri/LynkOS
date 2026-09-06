@@ -278,7 +278,11 @@ export default function App() {
     const now = Date.now()
     const batchIds = activeBatchIdsRef.current
     if (batchIds?.includes(id)) {
-      clearOutboundSelection()
+      // activeBatchIdsRef / autoSendStartedRef はここではクリアしない。
+      // 完了判定 useEffect が activeBatchIdsRef を見て finishOutboundSendSuccess()
+      // を呼ぶまで残しておく必要があるため（早期クリアすると sendPhase が
+      // 'transferring' のまま戻らなくなる）。表示上の選択解除のみ行う。
+      setPickedFile(null)
     }
     setTransfers((prev) => {
       const next = prev.map((t) =>
@@ -287,7 +291,7 @@ export default function App() {
       queueMicrotask(() => saveTransferLog(next))
       return next
     })
-  }, [clearOutboundSelection])
+  }, [])
 
   const handleReceive = useCallback(
     ({ id, name, size, directSaved, storageKey, chunkCount, mimeType }) => {
