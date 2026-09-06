@@ -1,6 +1,8 @@
+import LynkOSCore
 import SwiftUI
 
 struct ReceiveRequestDialog: View {
+    @ObservedObject private var loc = LocalizationManager.shared
     let request: TransferRequest
     let queuedBehind: Int
     let onAccept: () -> Void
@@ -27,7 +29,7 @@ struct ReceiveRequestDialog: View {
                     .foregroundStyle(LynkOSTheme.text)
 
                 if queuedBehind > 0 {
-                    Text("+\(queuedBehind) 件待ち")
+                    Text(L(.receiveRequestPendingCount, queuedBehind))
                         .font(.caption)
                         .foregroundStyle(LynkOSTheme.textMuted)
                 }
@@ -51,7 +53,7 @@ struct ReceiveRequestDialog: View {
 
                 HStack(spacing: 12) {
                     receiveActionRow(
-                        title: "拒否",
+                        title: L(.receiveRequestDeny),
                         systemImage: "xmark",
                         highlighted: false,
                         foreground: LynkOSTheme.textSub,
@@ -60,7 +62,7 @@ struct ReceiveRequestDialog: View {
                         action: onReject
                     )
                     receiveActionRow(
-                        title: "許可",
+                        title: L(.receiveRequestAllow),
                         systemImage: "circle",
                         highlighted: true,
                         foreground: LynkOSTheme.accent,

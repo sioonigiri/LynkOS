@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useLanguage } from '../i18n/useLanguage'
 import SiteFooter from './SiteFooter'
 import styles from './StaticPageLayout.module.css'
 
@@ -17,10 +18,12 @@ function LynkOSMark({ size = 32 }) {
 }
 
 export default function StaticPageLayout({ children }) {
+  const { t } = useLanguage()
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <Link to="/" className={styles.logo} aria-label="LynkOS トップへ">
+        <Link to="/" className={styles.logo} aria-label={t('nav.staticTopAria')}>
           <span className={styles.logoIcon}>
             <LynkOSMark />
           </span>

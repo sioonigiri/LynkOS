@@ -2,6 +2,7 @@ import LynkOSCore
 import SwiftUI
 
 struct DeviceListView: View {
+    @ObservedObject private var loc = LocalizationManager.shared
     let devices: [RemoteDevice]
     let isOffline: Bool
     let isSearching: Bool
@@ -17,9 +18,9 @@ struct DeviceListView: View {
     var body: some View {
         Group {
             if isOffline {
-                emptyState(icon: "⚠️", title: "オフライン", animateRadar: false)
+                emptyState(icon: "⚠️", title: L(.deviceOffline), animateRadar: false)
             } else if devices.isEmpty {
-                let title = isRefreshing ? "更新中…" : (isSearching ? "検索中" : "検索中")
+                let title = isRefreshing ? L(.deviceUpdating) : L(.deviceSearching)
                 emptyState(icon: "📡", title: title, animateRadar: isSearching || isRefreshing)
             } else {
                 LazyVGrid(columns: columns, spacing: 16) {

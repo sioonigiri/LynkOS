@@ -1,5 +1,6 @@
 import styles from './ReceiveDialog.module.css'
 import { getDeviceIconVisual, fileEntryVisual } from '../lib/deviceDisplay'
+import { useLanguage } from '../i18n/useLanguage'
 
 function senderDeviceFromRequest(request) {
   const t = request.senderType === 'mobile' ? 'mobile' : 'desktop'
@@ -11,6 +12,7 @@ function senderDeviceFromRequest(request) {
 }
 
 export default function ReceiveDialog({ request, onAccept, onReject }) {
+  const { t } = useLanguage()
   if (!request) return null
 
   const isMultiple = request.files.length > 1
@@ -18,7 +20,7 @@ export default function ReceiveDialog({ request, onAccept, onReject }) {
 
   return (
     <div className={styles.overlay} onClick={onReject}>
-      <div className={styles.sheet} onClick={(e) => e.stopPropagation()} role="dialog" aria-label="受信">
+      <div className={styles.sheet} onClick={(e) => e.stopPropagation()} role="dialog" aria-label={t('receiveDialog.dialogAria')}>
 
         <div className={styles.senderBubble}>
           {senderVis.kind === 'url' ? (
@@ -31,7 +33,11 @@ export default function ReceiveDialog({ request, onAccept, onReject }) {
         <p className={styles.senderNameOnly}>{request.senderName}</p>
 
         {request.inboundQueuedBehind > 0 && (
-          <p className={styles.queueHint} role="status" aria-label={`順番待ち ${request.inboundQueuedBehind}`}>
+          <p
+            className={styles.queueHint}
+            role="status"
+            aria-label={t('receiveDialog.pendingCountAria', { n: request.inboundQueuedBehind })}
+          >
             +{request.inboundQueuedBehind}
           </p>
         )}
@@ -62,19 +68,19 @@ export default function ReceiveDialog({ request, onAccept, onReject }) {
             type="button"
             className={`${styles.actionRow} ${styles.actionRowNeutral}`}
             onClick={onReject}
-            aria-label="拒否"
+            aria-label={t('receiveDialog.denyAria')}
           >
             <span className={styles.rejectMark} aria-hidden>×</span>
-            <span>拒否</span>
+            <span>{t('receiveDialog.deny')}</span>
           </button>
           <button
             type="button"
             className={`${styles.actionRow} ${styles.actionRowSelected}`}
             onClick={onAccept}
-            aria-label="受信"
+            aria-label={t('receiveDialog.allowAria')}
           >
             <span className={styles.circleMark} aria-hidden />
-            <span>許可</span>
+            <span>{t('receiveDialog.allow')}</span>
           </button>
         </div>
 

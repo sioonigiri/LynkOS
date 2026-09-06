@@ -7,6 +7,7 @@ public enum AppGroupSettings {
         var deviceId: String
         var deviceName: String
         var serverOrigin: String
+        var language: String?
     }
 
     public static var isAppGroupAvailable: Bool {
@@ -14,11 +15,10 @@ public enum AppGroupSettings {
     }
 
     public static func syncFromMainApp(deviceId: String, deviceName: String, serverConfig: ServerConfig) {
-        let state = SharedState(
-            deviceId: deviceId,
-            deviceName: deviceName,
-            serverOrigin: serverConfig.httpOrigin
-        )
+        var state = loadState() ?? SharedState(deviceId: deviceId, deviceName: deviceName, serverOrigin: serverConfig.httpOrigin, language: nil)
+        state.deviceId = deviceId
+        state.deviceName = deviceName
+        state.serverOrigin = serverConfig.httpOrigin
         saveState(state)
     }
 
@@ -35,6 +35,17 @@ public enum AppGroupSettings {
 
     public static func loadDeviceName() -> String {
         loadState()?.deviceName ?? "iPhone"
+    }
+
+    /// メインアプリで選択された表示言語を Share Extension にも共有する。
+    public static func syncLanguage(_ language: String) {
+        var state = loadState() ?? SharedState(deviceId: "", deviceName: "iPhone", serverOrigin: "", language: language)
+        state.language = language
+        saveState(state)
+    }
+
+    public static func loadLanguage() -> String? {
+        loadState()?.language
     }
 
     // MARK: - Private

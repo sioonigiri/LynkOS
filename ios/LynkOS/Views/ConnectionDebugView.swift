@@ -2,18 +2,19 @@ import LynkOSCore
 import SwiftUI
 
 struct ConnectionDebugView: View {
+    @ObservedObject private var loc = LocalizationManager.shared
     let status: ConnectionStatus
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("接続状態")
+            Text(L(.connectionDebugTitle))
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(LynkOSTheme.text)
             statusRow(title: "Presence", subtitle: "/ws/presence/", state: status.presence)
             statusRow(title: "Inbox", subtitle: "/ws/inbox/{deviceId}/", state: status.inbox)
-            statusRow(title: "Signaling", subtitle: "転送時 / テスト接続", state: status.signaling)
+            statusRow(title: "Signaling", subtitle: L(.connectionDebugSignalingSubtitle), state: status.signaling)
             if let error = status.lastError {
-                Text("直近のエラー: \(error)")
+                Text(L(.connectionDebugLastError, error))
                     .font(.caption)
                     .foregroundStyle(.red)
             }

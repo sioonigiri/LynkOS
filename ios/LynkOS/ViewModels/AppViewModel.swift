@@ -90,17 +90,17 @@ final class AppViewModel: ObservableObject {
         switch sendPhase {
         case .waitingResponse:
             if let file = pickedFile {
-                return ActiveTransferDisplay(name: file.name, meta: "許可待ち", progress: nil, isSending: true)
+                return ActiveTransferDisplay(name: file.name, meta: L(.transferMetaWaitingPermission), progress: nil, isSending: true)
             }
         case .connecting:
             if let file = pickedFile {
-                return ActiveTransferDisplay(name: file.name, meta: "接続中", progress: nil, isSending: true)
+                return ActiveTransferDisplay(name: file.name, meta: L(.transferMetaConnecting), progress: nil, isSending: true)
             }
         case .sending:
             if let file = pickedFile {
                 return ActiveTransferDisplay(
                     name: file.name,
-                    meta: "送信 \(sendProgress ?? 0)%",
+                    meta: L(.transferMetaSendingPercent, sendProgress ?? 0),
                     progress: sendProgress,
                     isSending: true
                 )
@@ -111,7 +111,7 @@ final class AppViewModel: ObservableObject {
         if sendUiBusy, let name = receivingFileName {
             return ActiveTransferDisplay(
                 name: name,
-                meta: "受信 \(receiveProgress ?? 0)%",
+                meta: L(.transferMetaReceivingPercent, receiveProgress ?? 0),
                 progress: receiveProgress,
                 isSending: false
             )
@@ -231,8 +231,7 @@ final class AppViewModel: ObservableObject {
 
         #if !targetEnvironment(simulator)
         guard config.isConfigured, !config.isLoopback else {
-            let message =
-                "同一 Wi-Fi で PC または Mac の LynkOS（Django）を起動してください。"
+            let message = L(.errorServerNotConfiguredLAN)
             bootstrapError = message
             isServerOffline = true
             hub.stop()
@@ -243,7 +242,7 @@ final class AppViewModel: ObservableObject {
         #endif
 
         guard config.isConfigured else {
-            bootstrapError = "シグナリングサーバーに接続できません"
+            bootstrapError = L(.errorSignalingUnreachable)
             isServerOffline = true
             hub.stop()
             lastConnectedOrigin = nil
@@ -329,7 +328,7 @@ final class AppViewModel: ObservableObject {
                         self.reconnect()
                     }
                 } else if self.discoveredHubOrigin == nil {
-                    self.hubDiscoveryHint = "LAN 上の LynkOS サーバーを探索中…"
+                    self.hubDiscoveryHint = L(.debugHubSearching)
                 }
             }
         }
@@ -369,12 +368,12 @@ final class AppViewModel: ObservableObject {
         let wsReconnecting = status.presence == .reconnecting || status.inbox == .reconnecting
         if wsConnected || wsReconnecting {
             // HTTP だけ一時失敗（Render 起動待ち等）— 一覧は維持しオフライン表示にしない
-            showToast("一覧の更新に失敗しました。接続は維持されています")
+            showToast(L(.toastDeviceListRefreshFailedKeepAlive))
             bootstrapError = nil
             updateOfflineState()
         } else {
             isServerOffline = true
-            bootstrapError = "デバイス一覧: \(lastError?.localizedDescription ?? "不明")"
+            bootstrapError = L(.errorDeviceListPrefix, lastError?.localizedDescription ?? L(.errorUnknown))
         }
     }
 
@@ -398,11 +397,11 @@ final class AppViewModel: ObservableObject {
         }
         guard sendPhase == .idle, !sendUiBusy else { return }
         guard let picked = pickedFile else {
-            showToast("先にファイルを選択してください")
+            showToast(L(.toastSelectFileFirst))
             return
         }
         guard picked.sourceData != nil || picked.sourceURL != nil else {
-            showToast("ファイルを読み込めませんでした")
+            showToast(L(.toastFileLoadFailed))
             return
         }
         sendTransferRequest(to: device, file: picked)
@@ -464,7 +463,7 @@ final class AppViewModel: ObservableObject {
         } catch {
             pendingSendRequestId = nil
             pendingSendPeerId = nil
-            showToast("転送リクエストの送信に失敗しました")
+            showToast(L(.toastSendRequestFailed))
         }
     }
 
@@ -499,12 +498,12 @@ final class AppViewModel: ObservableObject {
                     return
                 }
                 await MainActor.run {
-                    self.showToast("写真を読み込めませんでした")
+                    self.showToast(L(.toastPhotoLoadFailed))
                 }
             } catch {
                 await MainActor.run {
                     guard self.filePickGeneration == loadGeneration else { return }
-                    self.showToast("写真を読み込めませんでした")
+                    self.showToast(L(.toastPhotoLoadFailed))
                 }
             }
         }
@@ -551,7 +550,7 @@ final class AppViewModel: ObservableObject {
                 pickedFile = file
             }
         } catch {
-            showToast("ファイルを読み込めませんでした")
+            showToast(L(.toastFileLoadFailed))
         }
     }
 
@@ -559,13 +558,13 @@ final class AppViewModel: ObservableObject {
         guard let data = try? await item.loadTransferable(type: Data.self),
               let image = UIImage(data: data),
               let jpeg = image.jpegData(compressionQuality: 0.82) else {
-            showToast("画像を読み込めませんでした")
+            showToast(L(.toastImageLoadFailed))
             return
         }
         let base64 = jpeg.base64EncodedString()
         let dataURL = "data:image/jpeg;base64,\(base64)"
         guard dataURL.count <= Self.maxIconBase64Length else {
-            showToast("画像が大きすぎます")
+            showToast(L(.toastImageTooLarge))
             return
         }
         deviceIconData = dataURL
@@ -612,7 +611,7 @@ final class AppViewModel: ObservableObject {
             startReceiveTransfer(from: request.from)
         } catch {
             sendUiBusy = false
-            showToast("受信開始に失敗しました")
+            showToast(L(.toastReceiveStartFailed))
             presentNextIncomingIfNeeded()
         }
     }
@@ -628,7 +627,7 @@ final class AppViewModel: ObservableObject {
                 "to": request.from,
             ])
         } catch {
-            showToast("拒否の送信に失敗しました")
+            showToast(L(.toastRejectSendFailed))
         }
         presentNextIncomingIfNeeded()
     }
@@ -674,7 +673,7 @@ final class AppViewModel: ObservableObject {
         guard sendPhase == .waitingResponse else { return }
         guard let pendingId = pendingSendRequestId,
               message.raw["requestId"] as? String == pendingId else { return }
-        showToast("相手が拒否しました")
+        showToast(L(.toastPeerRejected))
         finishSendFlow(as: .preserveSelection)
     }
 
@@ -743,7 +742,7 @@ final class AppViewModel: ObservableObject {
             guard !Task.isCancelled else { return }
             await MainActor.run {
                 guard let self, self.sendPhase == .waitingResponse else { return }
-                self.showToast("相手からの応答がありませんでした")
+                self.showToast(L(.toastNoResponse))
                 self.finishSendFlow(as: .preserveSelection)
             }
         }
@@ -768,20 +767,20 @@ final class AppViewModel: ObservableObject {
     func savePendingReceiveToPhotos() async {
         guard let pending = pendingReceive else { return }
         guard pending.isMedia else {
-            showToast("このファイルは写真アプリに保存できません")
+            showToast(L(.toastNotSavableToPhotos))
             return
         }
         let authorized = await requestPhotoLibraryAddAccess()
         guard authorized else {
-            showToast("写真へのアクセスが許可されていません")
+            showToast(L(.toastPhotoAccessDenied))
             return
         }
         do {
             try await performPhotoLibrarySave(url: pending.tempURL, mimeType: pending.mimeType)
             finalizePendingReceive(destination: .photos)
-            showToast("\(pending.name) を写真に保存しました")
+            showToast(L(.toastSavedToPhotosNamed, pending.name))
         } catch {
-            showToast("保存に失敗しました")
+            showToast(L(.toastSaveFailed))
         }
     }
 
@@ -789,7 +788,7 @@ final class AppViewModel: ObservableObject {
         guard let pending = pendingReceive else { return }
         let source = pending.tempURL.standardizedFileURL
         guard ReceivedFileStorage.fileExists(at: source) else {
-            showToast("ファイルが見つかりません")
+            showToast(L(.toastFileNotFound))
             return
         }
         do {
@@ -799,7 +798,7 @@ final class AppViewModel: ObservableObject {
             )
             filesExportRequest = FilesExportRequest(url: stagingURL)
         } catch {
-            showToast("ファイルが見つかりません")
+            showToast(L(.toastFileNotFound))
         }
     }
 
@@ -811,7 +810,7 @@ final class AppViewModel: ObservableObject {
         guard let pending = pendingReceive else { return }
         if saved {
             finalizePendingReceive(destination: .files)
-            showToast("\(pending.name) を保存しました")
+            showToast(L(.toastSavedNamed, pending.name))
         }
     }
 
@@ -973,7 +972,7 @@ extension AppViewModel: WebRTCTransferSessionDelegate {
             : Int64((try? savedURL.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
         guard let handoffURL = ReceivedFileStorage.prepareReceivedFileForHandoff(at: savedURL) else {
             ReceivedFileStorage.deletePendingReceiveFile(at: savedURL)
-            showToast("受信ファイルの準備に失敗しました")
+            showToast(L(.toastReceiveFilePrepareFailed))
             finishReceiveFlow()
             return
         }
@@ -992,22 +991,28 @@ extension AppViewModel: WebRTCTransferSessionDelegate {
         mimeType: String,
         size: Int64
     ) {
-        showToast("\(fileName) を送信しました")
+        showToast(L(.toastSentNamed, fileName))
         finishSendFlow(as: .success)
+    }
+
+    /// WebRTCTransferSession が接続断・切断系として報告する既知メッセージ一覧（現在の表示言語のローカライズ済み文字列）。
+    /// これらは「送信失敗:」「受信失敗:」の接頭辞を付けずにそのまま表示する（元の日本語部分一致判定を、
+    /// ローカライズ後も同じ挙動になるよう完全一致判定に置き換えたもの）。
+    private static var disconnectStyleFailureMessages: Set<String> {
+        [L(.errorServerDisconnected), L(.errorPeerDisconnected), L(.errorConnectionLost)]
     }
 
     func transferSession(_ session: WebRTCTransferSession, didFail message: String) {
         if sendPhase != .idle {
-            let display = message.contains("切断") || message.contains("接続")
+            let display = Self.disconnectStyleFailureMessages.contains(message)
                 ? message
-                : "送信失敗: \(message)"
+                : L(.errorSendFailedPrefix, message)
             showToast(display)
             finishSendFlow(as: .preserveSelection)
         } else {
-            let display =
-                message.contains("切断") || message.contains("接続") || message.contains("応答")
+            let display = Self.disconnectStyleFailureMessages.contains(message) || message == L(.toastNoResponse)
                 ? message
-                : "受信失敗: \(message)"
+                : L(.errorReceiveFailedPrefix, message)
             showToast(display)
             finishReceiveFlow()
         }

@@ -2,12 +2,13 @@ import { useRef, useState, useEffect, useMemo } from 'react'
 import {
   isAppleTouchDevice,
   MB,
-  IOS_SEND_NOTICE_TITLE,
+  iosSendNoticeTitle,
   iosSendNoticeBody,
   iosSendConfirm300Body,
   formatMb,
 } from '../lib/iosFileSizePolicy'
 import { fileEntryVisual } from '../lib/deviceDisplay'
+import { useLanguage } from '../i18n/useLanguage'
 import styles from './SendPanel.module.css'
 
 const NOTICE_DISMISS_MS = 9000
@@ -22,6 +23,7 @@ const FILE_INPUT_ID = 'lynkos-file-input'
  * @param {boolean} [props.allowPick=true]
  */
 export default function SendPanel({ onFileChosen, disabled, allowPick = true, previewFile = null }) {
+  const { t } = useLanguage()
   const inputRef = useRef(null)
   const [dragging, setDragging] = useState(false)
   const [iosNoticeMb, setIosNoticeMb] = useState(null)
@@ -85,19 +87,19 @@ export default function SendPanel({ onFileChosen, disabled, allowPick = true, pr
   }
 
   const waitLabel =
-    combinedDisabled && allowPick ? '待機' : !allowPick ? '待機' : null
+    combinedDisabled && allowPick ? t('sendPanel.waiting') : !allowPick ? t('sendPanel.waiting') : null
 
   return (
     <div className={styles.outer}>
       {iosNoticeMb != null && (
         <div className={styles.iosNotice} role="status">
           <div className={styles.iosNoticeHead}>
-            <span className={styles.iosNoticeTitle}>{IOS_SEND_NOTICE_TITLE}</span>
+            <span className={styles.iosNoticeTitle}>{iosSendNoticeTitle()}</span>
             <button
               type="button"
               className={styles.iosNoticeClose}
               onClick={() => setIosNoticeMb(null)}
-              aria-label="閉じる"
+              aria-label={t('sendPanel.closeAria')}
             >
               ×
             </button>
@@ -150,7 +152,7 @@ export default function SendPanel({ onFileChosen, disabled, allowPick = true, pr
         )}
 
         {!waitLabel && !hasPreview && (
-          <div className={styles.placeholder}>画像・ファイルを選択</div>
+          <div className={styles.placeholder}>{t('sendPanel.selectPrompt')}</div>
         )}
 
         {!waitLabel && hasPreview && isImage && previewUrl && (

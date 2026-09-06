@@ -11,6 +11,7 @@ import {
   clearLynkOsCaches,
   recordSessionEnd,
 } from './lib/sessionBoundary'
+import { LanguageProvider } from './i18n/LanguageContext'
 
 const { didReset } = applyLongAbsenceResetIfNeeded()
 if (didReset && 'caches' in window) {
@@ -33,13 +34,15 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/support" element={<SupportPage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
-        <Route path="/app" element={<App />} />
-      </Routes>
-    </BrowserRouter>
+    <LanguageProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/support" element={<SupportPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/app" element={<App />} />
+        </Routes>
+      </BrowserRouter>
+    </LanguageProvider>
   </StrictMode>,
 )

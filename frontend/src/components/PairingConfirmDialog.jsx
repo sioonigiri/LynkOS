@@ -1,4 +1,5 @@
 import styles from './PairingConfirmDialog.module.css'
+import { useLanguage } from '../i18n/useLanguage'
 
 /**
  * 送信側: 接続リクエストを送り、相手の許可待ち
@@ -10,6 +11,8 @@ export function ConnectionIncomingDialog({
   onAccept,
   onReject,
 }) {
+  const { t } = useLanguage()
+
   return (
     <div className={styles.overlay} role="presentation">
       <div
@@ -19,7 +22,7 @@ export function ConnectionIncomingDialog({
         aria-labelledby="conn-in-title"
       >
         <p id="conn-in-title" className={styles.visuallyHidden}>
-          接続
+          {t('pairing.connectHidden')}
         </p>
         <div className={styles.senderBubble}>
           <span className={styles.senderIcon} aria-hidden>
@@ -32,19 +35,19 @@ export function ConnectionIncomingDialog({
             type="button"
             className={`${styles.actionRow} ${styles.actionRowNeutral}`}
             onClick={onReject}
-            aria-label="拒否"
+            aria-label={t('pairing.deny')}
           >
             <span className={styles.rejectMark} aria-hidden>×</span>
-            <span>拒否</span>
+            <span>{t('pairing.deny')}</span>
           </button>
           <button
             type="button"
             className={`${styles.actionRow} ${styles.actionRowSelected}`}
             onClick={onAccept}
-            aria-label="許可"
+            aria-label={t('pairing.allow')}
           >
             <span className={styles.circleMark} aria-hidden />
-            <span>許可</span>
+            <span>{t('pairing.allow')}</span>
           </button>
         </div>
       </div>
@@ -60,6 +63,7 @@ export default function PairingConfirmDialog({
   onCancel,
   onReconnect,
 }) {
+  const { t } = useLanguage()
   const waiting = outgoingAwaitingAccept && !connectionFailed
 
   return (
@@ -79,19 +83,19 @@ export default function PairingConfirmDialog({
             …
           </p>
         ) : (
-          <p className={styles.visuallyHidden}>接続</p>
+          <p className={styles.visuallyHidden}>{t('pairing.titleHidden')}</p>
         )}
 
         <div className={waiting ? `${styles.actions} ${styles.actionsSingle}` : styles.actions}>
-          <button type="button" className={styles.btnSecondary} onClick={onCancel} aria-label="キャンセル">
+          <button type="button" className={styles.btnSecondary} onClick={onCancel} aria-label={t('pairing.cancelAria')}>
             ×
           </button>
           {connectionFailed ? (
-            <button type="button" className={styles.btnPrimary} onClick={onReconnect} aria-label="再接続">
+            <button type="button" className={styles.btnPrimary} onClick={onReconnect} aria-label={t('pairing.reconnectAria')}>
               ↻
             </button>
           ) : !waiting ? (
-            <button type="button" className={styles.btnPrimary} onClick={onSendRequest} aria-label="送信">
+            <button type="button" className={styles.btnPrimary} onClick={onSendRequest} aria-label={t('pairing.sendAria')}>
               →
             </button>
           ) : null}

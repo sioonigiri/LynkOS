@@ -1,10 +1,11 @@
 import {
   isAppleTouchDevice,
   getIosSizeTier,
-  IOS_DL_NOTICE,
-  IOS_DL_CONFIRM_300,
-  IOS_DL_BLOCKED,
+  iosDlNotice,
+  iosDlConfirm300,
+  iosDlBlocked,
 } from '../lib/iosFileSizePolicy'
+import { useLanguage } from '../i18n/useLanguage'
 import styles from './DownloadConfirmDialog.module.css'
 
 export default function DownloadConfirmDialog({
@@ -13,6 +14,7 @@ export default function DownloadConfirmDialog({
   onConfirm,
   onCancel,
 }) {
+  const { t } = useLanguage()
   const iOS = isAppleTouchDevice()
   const sz = Number(fileSize) || 0
   const tier = iOS ? getIosSizeTier(sz) : 'ok'
@@ -25,11 +27,11 @@ export default function DownloadConfirmDialog({
 
   const tierNote =
     iOS && tier === 'notice'
-      ? IOS_DL_NOTICE
+      ? iosDlNotice()
       : iOS && tier === 'confirm'
-        ? IOS_DL_CONFIRM_300
+        ? iosDlConfirm300()
         : tier === 'blocked'
-          ? IOS_DL_BLOCKED
+          ? iosDlBlocked()
           : ''
 
   return (
@@ -39,15 +41,15 @@ export default function DownloadConfirmDialog({
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-labelledby="dl-confirm-title"
-        aria-label="保存の確認"
+        aria-label={t('downloadDialog.dialogAria')}
       >
         {tier !== 'blocked' ? (
           <p id="dl-confirm-title" className={styles.dialogTitle}>
-            保存しますか？
+            {t('downloadDialog.confirmTitle')}
           </p>
         ) : (
           <p id="dl-confirm-title" className={styles.dialogTitle}>
-            保存できません
+            {t('downloadDialog.blockedTitle')}
           </p>
         )}
         {tierNote ? (
@@ -69,7 +71,7 @@ export default function DownloadConfirmDialog({
             className={styles.cancelBtn}
             onClick={onCancel}
           >
-            {tier === 'blocked' ? '閉じる' : 'キャンセル'}
+            {tier === 'blocked' ? t('downloadDialog.close') : t('downloadDialog.cancel')}
           </button>
           {tier !== 'blocked' && (
             <button
@@ -78,7 +80,7 @@ export default function DownloadConfirmDialog({
               onClick={handleConfirm}
               disabled={!canConfirm}
             >
-              保存
+              {t('downloadDialog.save')}
             </button>
           )}
         </div>

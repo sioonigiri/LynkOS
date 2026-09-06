@@ -172,7 +172,7 @@ final class WebRTCTransferSession: NSObject {
                     if state == .connected, !self.polite {
                         self.sendOfferIfNeeded()
                     } else if state == .disconnected || state == .reconnecting {
-                        self.endSessionWithFailure("サーバーとの接続が切れました")
+                        self.endSessionWithFailure(L(.errorServerDisconnected))
                     }
                 }
             },
@@ -225,7 +225,7 @@ final class WebRTCTransferSession: NSObject {
         peerDisconnectDebounceTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: Self.peerDisconnectGraceNanoseconds)
             guard !Task.isCancelled else { return }
-            self?.endSessionWithFailure("相手が切断しました")
+            self?.endSessionWithFailure(L(.errorPeerDisconnected))
         }
     }
 
@@ -254,7 +254,7 @@ final class WebRTCTransferSession: NSObject {
                 resendOfferIfNeeded(pc: pc)
             }
         case "peer-left", "disconnect":
-            endSessionWithFailure("相手が切断しました")
+            endSessionWithFailure(L(.errorPeerDisconnected))
         case "offer":
             Task { await applyRemoteOffer(msg) }
         case "answer":
@@ -304,7 +304,7 @@ final class WebRTCTransferSession: NSObject {
             sendSignaling(["type": "answer", "sdp": sdpToDict(answer)])
             await flushPendingCandidates()
         } catch {
-            endSessionWithFailure("Offer 処理失敗: \(error.localizedDescription)")
+            endSessionWithFailure(L(.errorOfferProcessingFailed, error.localizedDescription))
         }
     }
 
@@ -316,7 +316,7 @@ final class WebRTCTransferSession: NSObject {
             try await pc.setRemoteDescription(remote)
             await flushPendingCandidates()
         } catch {
-            endSessionWithFailure("Answer 処理失敗: \(error.localizedDescription)")
+            endSessionWithFailure(L(.errorAnswerProcessingFailed, error.localizedDescription))
         }
     }
 
@@ -372,7 +372,7 @@ final class WebRTCTransferSession: NSObject {
                 try await pc.setLocalDescription(offer)
                 sendSignaling(["type": "offer", "sdp": sdpToDict(offer)])
             } catch {
-                endSessionWithFailure("Offer 作成失敗")
+                endSessionWithFailure(L(.errorOfferCreationFailed))
             }
         }
     }
@@ -452,7 +452,7 @@ final class WebRTCTransferSession: NSObject {
                     guard let self, self.fileRequestResponseContinuation != nil else { return }
                     self.fileRequestResponseContinuation?.resume(returning: false)
                     self.fileRequestResponseContinuation = nil
-                    self.endSessionWithFailure("相手からの応答がありませんでした")
+                    self.endSessionWithFailure(L(.toastNoResponse))
                 }
             }
         }
@@ -460,7 +460,7 @@ final class WebRTCTransferSession: NSObject {
         fileRequestResponseTimeoutTask = nil
         guard !sessionEnded else { return }
         guard accepted else {
-            endSessionWithFailure("相手が転送を拒否しました")
+            endSessionWithFailure(L(.errorPeerRejectedTransfer))
             return
         }
 
@@ -601,7 +601,7 @@ final class WebRTCTransferSession: NSObject {
         }
         guard let handle = try? FileHandle(forWritingTo: dest) else {
             ReceivedFileStorage.deletePendingReceiveFile(at: dest)
-            delegate?.transferSession(self, didFail: "受信ファイルを作成できませんでした")
+            delegate?.transferSession(self, didFail: L(.errorReceiveFileCreateFailed))
             return
         }
         receiveURL = dest
@@ -639,7 +639,7 @@ final class WebRTCTransferSession: NSObject {
 
         guard let handoffURL = ReceivedFileStorage.prepareReceivedFileForHandoff(at: url) else {
             ReceivedFileStorage.deletePendingReceiveFile(at: url)
-            delegate?.transferSession(self, didFail: "受信ファイルの保存に失敗しました")
+            delegate?.transferSession(self, didFail: L(.errorReceiveFileSaveFailed))
             return
         }
 
@@ -689,7 +689,7 @@ extension WebRTCTransferSession: RTCPeerConnectionDelegate {
             guard !sessionEnded, !sessionSucceeded, self.peerConnection === peerConnection else { return }
             switch newState {
             case .failed:
-                endSessionWithFailure("接続が切断されました")
+                endSessionWithFailure(L(.errorConnectionLost))
             case .disconnected:
                 if isTransferInProgress() {
                     schedulePeerDisconnectFailure()
@@ -732,7 +732,7 @@ extension WebRTCTransferSession: RTCPeerConnectionDelegate {
             guard !sessionEnded, !sessionSucceeded, self.peerConnection === peerConnection else { return }
             switch newState {
             case .failed, .closed:
-                endSessionWithFailure("接続が切断されました")
+                endSessionWithFailure(L(.errorConnectionLost))
             case .disconnected:
                 if isTransferInProgress() {
                     schedulePeerDisconnectFailure()
@@ -756,7 +756,7 @@ extension WebRTCTransferSession: RTCDataChannelDelegate {
                 self.onDataChannelReady()
             } else if dataChannel.readyState == .closed || dataChannel.readyState == .closing {
                 if !self.sessionEnded, !self.sessionSucceeded, self.isTransferInProgress() {
-                    self.endSessionWithFailure("相手が切断しました")
+                    self.endSessionWithFailure(L(.errorPeerDisconnected))
                 }
             }
         }

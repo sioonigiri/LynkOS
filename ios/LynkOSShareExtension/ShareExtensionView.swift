@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ShareExtensionView: View {
     @ObservedObject var viewModel: ShareExtensionViewModel
+    @ObservedObject private var loc = LocalizationManager.shared
 
     var body: some View {
         NavigationStack {
@@ -18,7 +19,7 @@ struct ShareExtensionView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("キャンセル") { viewModel.cancel() }
+                    Button(L(.commonCancel)) { viewModel.cancel() }
                 }
             }
         }
@@ -28,38 +29,38 @@ struct ShareExtensionView: View {
     private var content: some View {
         switch viewModel.screenState {
         case .loadingAttachment:
-            loadingView("共有内容を読み込み中…")
+            loadingView(L(.shareLoadingAttachment))
         case .needsMainAppSetup:
             messageView(
-                title: "セットアップが必要です",
-                subtitle: "同一 Wi-Fi で PC または Mac の LynkOS を起動してください。初回は LynkOS アプリを一度開いてください。"
+                title: L(.shareSetupRequiredTitle),
+                subtitle: L(.shareSetupRequiredSubtitle)
             )
         case .searching:
-            loadingView("近くのデバイスを探しています…")
+            loadingView(L(.shareSearchingNearbyDevices))
         case .attachmentError(let message):
             messageView(title: message, subtitle: nil)
         case .ready:
             deviceList
         case .waitingAccept(let peerName):
-            loadingView("\(peerName) の許可を待っています…")
+            loadingView(L(.shareWaitingAcceptFromPeer, peerName))
         case .connecting(let peerName):
-            loadingView("\(peerName) に接続中…")
+            loadingView(L(.shareConnectingToPeer, peerName))
         case .sending(let peerName, let progress):
             sendingView(peerName: peerName, progress: progress)
         case .completed:
             completedView
         case .rejected:
             messageView(
-                title: "拒否されました",
-                subtitle: "相手が転送を拒否しました",
-                actionTitle: "閉じる",
+                title: L(.shareRejectedTitle),
+                subtitle: L(.errorPeerRejectedTransfer),
+                actionTitle: L(.commonClose),
                 action: { viewModel.dismissAfterComplete() }
             )
         case .transferError(let message):
             messageView(
                 title: message,
                 subtitle: nil,
-                actionTitle: "閉じる",
+                actionTitle: L(.commonClose),
                 action: { viewModel.dismissAfterComplete() }
             )
         }
@@ -82,7 +83,7 @@ struct ShareExtensionView: View {
             .clipShape(RoundedRectangle(cornerRadius: 10))
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(viewModel.attachment?.fileName ?? "ファイル")
+                Text(viewModel.attachment?.fileName ?? L(.shareFileFallbackName))
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(2)
                 if let size = viewModel.attachment?.size {
@@ -111,10 +112,10 @@ struct ShareExtensionView: View {
                 if viewModel.devices.isEmpty {
                     VStack(spacing: 10) {
                         ProgressView()
-                        Text("検索中…")
+                        Text(L(.shareDeviceListSearching))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        Text("同一 Wi-Fi 上で Web / iOS の LynkOS が起動している必要があります")
+                        Text(L(.shareDeviceListEmptyHint))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -181,7 +182,7 @@ struct ShareExtensionView: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 48))
                 .foregroundStyle(.green)
-            Text("送信完了")
+            Text(L(.shareSendCompletedTitle))
                 .font(.headline)
             if let name = viewModel.attachment?.fileName {
                 Text(name)
@@ -190,7 +191,7 @@ struct ShareExtensionView: View {
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
             }
-            Button("閉じる") { viewModel.dismissAfterComplete() }
+            Button(L(.commonClose)) { viewModel.dismissAfterComplete() }
                 .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -201,7 +202,7 @@ struct ShareExtensionView: View {
             ProgressView(value: Double(progress), total: 100)
                 .progressViewStyle(.linear)
                 .padding(.horizontal, 32)
-            Text("\(peerName) に送信中…")
+            Text(L(.shareSendingToPeer, peerName))
                 .font(.subheadline)
             Text("\(progress)%")
                 .font(.caption)

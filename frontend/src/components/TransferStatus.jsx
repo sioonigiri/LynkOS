@@ -1,5 +1,6 @@
 import { useState, useLayoutEffect } from 'react'
 import { getTransferLifecyclePhase } from '../lib/transferPhases'
+import { useLanguage } from '../i18n/useLanguage'
 import styles from './TransferStatus.module.css'
 
 function formatBytes(bytes) {
@@ -22,22 +23,22 @@ function getFileIcon(name) {
   return '📄'
 }
 
-function TransferRow({ t, onReceiveTap }) {
-  const isReceiveTap = t.status === 'received_ready' && typeof onReceiveTap === 'function'
-  const phase = getTransferLifecyclePhase(t)
+function TransferRow({ t: item, onReceiveTap, tr }) {
+  const isReceiveTap = item.status === 'received_ready' && typeof onReceiveTap === 'function'
+  const phase = getTransferLifecyclePhase(item)
   const showProgressTrack =
-    t.status === 'queued' || t.status === 'sending' || t.status === 'receiving'
+    item.status === 'queued' || item.status === 'sending' || item.status === 'receiving'
 
   return (
-    <li className={`${styles.item} ${styles[t.status] ?? ''}`}>
+    <li className={`${styles.item} ${styles[item.status] ?? ''}`}>
       <div className={styles.row}>
         <span className={styles.fileIcon}>
-          {t.status === 'done'             ? '✅'
-          : t.status === 'received_saved' ? '✅'
-          : t.status === 'received_ready' ? '📥'
-          : t.status === 'error'          ? '❌'
-          : t.status === 'rejected'       ? '🚫'
-          : getFileIcon(t.name)}
+          {item.status === 'done'             ? '✅'
+          : item.status === 'received_saved' ? '✅'
+          : item.status === 'received_ready' ? '📥'
+          : item.status === 'error'          ? '❌'
+          : item.status === 'rejected'       ? '🚫'
+          : getFileIcon(item.name)}
         </span>
 
         <div className={styles.info}>
@@ -45,27 +46,27 @@ function TransferRow({ t, onReceiveTap }) {
             <button
               type="button"
               className={styles.fileTapBtn}
-              onClick={() => onReceiveTap(t)}
-              aria-label="保存の確認へ"
+              onClick={() => onReceiveTap(item)}
+              aria-label={tr('transferStatus.receiveConfirmAria')}
             >
-              {t.name}
+              {item.name}
             </button>
           ) : (
-            <span className={styles.name} title={t.name}>{t.name}</span>
+            <span className={styles.name} title={item.name}>{item.name}</span>
           )}
-          <span className={styles.meta}>{formatBytes(t.size)}</span>
+          <span className={styles.meta}>{formatBytes(item.size)}</span>
         </div>
 
-        <span className={`${styles.badge} ${styles[`badge_${t.status}`] ?? ''}`}>
-          {phase === 'waiting'             ? '待機'
-          : t.status === 'receiving'      ? `受信 ${t.progress ?? 0}%`
-          : t.status === 'sending'        ? `送信 ${t.progress ?? 0}%`
-          : t.status === 'done'             ? '完了'
-          : t.status === 'received_saved'  ? '完了'
-          : t.status === 'received_ready' ? '受信'
-          : t.status === 'error'          ? 'エラー'
-          : t.status === 'rejected'       ? '拒否'
-          : `${t.progress ?? 0}%`}
+        <span className={`${styles.badge} ${styles[`badge_${item.status}`] ?? ''}`}>
+          {phase === 'waiting'                  ? tr('transferStatus.waiting')
+          : item.status === 'receiving'        ? tr('transferStatus.receivingPercent', { p: item.progress ?? 0 })
+          : item.status === 'sending'          ? tr('transferStatus.sendingPercent', { p: item.progress ?? 0 })
+          : item.status === 'done'             ? tr('transferStatus.done')
+          : item.status === 'received_saved'   ? tr('transferStatus.done')
+          : item.status === 'received_ready'   ? tr('transferStatus.received')
+          : item.status === 'error'            ? tr('transferStatus.error')
+          : item.status === 'rejected'         ? tr('transferStatus.rejected')
+          : `${item.progress ?? 0}%`}
         </span>
       </div>
 
@@ -73,7 +74,7 @@ function TransferRow({ t, onReceiveTap }) {
         <div className={styles.track}>
           <div
             className={styles.fill}
-            style={{ width: `${t.status === 'queued' ? 0 : (t.progress ?? 0)}%` }}
+            style={{ width: `${item.status === 'queued' ? 0 : (item.progress ?? 0)}%` }}
           />
         </div>
       )}
@@ -81,17 +82,17 @@ function TransferRow({ t, onReceiveTap }) {
   )
 }
 
-function inboundStripText(state) {
+function inboundStripText(state, t) {
   if (!state) return ''
   const q = state.queuedRequests ?? 0
   if (state.phase === 'prompt' && q > 0) {
     return `+${q}`
   }
   if (state.phase === 'receiving' && q > 0) {
-    return `受信 +${q}`
+    return t('transferStatus.receivingCount', { q })
   }
   if (state.phase === 'receiving') {
-    return '受信中'
+    return t('transferStatus.receivingInProgress')
   }
   if (q > 0) {
     return `+${q}`
@@ -105,11 +106,12 @@ export default function TransferStatus({
   onReceiveFileTap,
   inboundReceiveState,
 }) {
+  const { t } = useLanguage()
   const [tab, setTab] = useState('inflight')
 
   const hasInFlight = inFlightTransfers.length > 0
   const hasCompleted = completedTransfers.length > 0
-  const inboundMsg = inboundStripText(inboundReceiveState)
+  const inboundMsg = inboundStripText(inboundReceiveState, t)
   const showInbound = inboundMsg.length > 0
 
   useLayoutEffect(() => {
@@ -128,7 +130,7 @@ export default function TransferStatus({
       )}
 
       {(hasInFlight || hasCompleted) && (
-        <div className={styles.tabBar} role="tablist" aria-label="転送の表示切替">
+        <div className={styles.tabBar} role="tablist" aria-label={t('transferStatus.tablistAria')}>
           <button
             type="button"
             role="tab"
@@ -136,7 +138,7 @@ export default function TransferStatus({
             className={`${styles.tab} ${tab === 'inflight' ? styles.tabActive : ''}`}
             onClick={() => setTab('inflight')}
           >
-            進行
+            {t('transferStatus.inflight')}
             {hasInFlight ? (
               <span className={styles.tabCount}>{inFlightTransfers.length}</span>
             ) : null}
@@ -148,7 +150,7 @@ export default function TransferStatus({
             className={`${styles.tab} ${tab === 'completed' ? styles.tabActive : ''}`}
             onClick={() => setTab('completed')}
           >
-            完了
+            {t('transferStatus.completed')}
             {hasCompleted ? (
               <span className={styles.tabCount}>{completedTransfers.length}</span>
             ) : null}
@@ -159,8 +161,8 @@ export default function TransferStatus({
       {tab === 'inflight' && hasInFlight && (
         <div className={styles.block} role="tabpanel">
           <ul className={styles.list}>
-            {inFlightTransfers.map((t) => (
-              <TransferRow key={t.id} t={t} onReceiveTap={onReceiveFileTap} />
+            {inFlightTransfers.map((item) => (
+              <TransferRow key={item.id} t={item} onReceiveTap={onReceiveFileTap} tr={t} />
             ))}
           </ul>
         </div>
@@ -175,8 +177,8 @@ export default function TransferStatus({
       {tab === 'completed' && hasCompleted && (
         <div className={styles.block} role="tabpanel">
           <ul className={styles.list}>
-            {completedTransfers.map((t) => (
-              <TransferRow key={t.id} t={t} onReceiveTap={onReceiveFileTap} />
+            {completedTransfers.map((item) => (
+              <TransferRow key={item.id} t={item} onReceiveTap={onReceiveFileTap} tr={t} />
             ))}
           </ul>
         </div>

@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var viewModel: AppViewModel
+    @ObservedObject private var loc = LocalizationManager.shared
     @State private var showSettings = false
     @State private var showSupport = false
     @State private var showClearHistoryConfirm = false
@@ -15,9 +16,16 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            HStack {
+                Spacer()
+                LanguageToggleView()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+
             headerBar
                 .padding(.horizontal, 20)
-                .padding(.top, 12)
+                .padding(.top, 8)
                 .padding(.bottom, 18)
                 .background(LynkOSTheme.background)
 
@@ -130,14 +138,14 @@ struct ContentView: View {
         }
         .animation(.spring(response: 0.32, dampingFraction: 0.82), value: showClearHistoryFAB)
         .confirmationDialog(
-            "転送済みファイルを消去しますか？",
+            L(.contentViewClearHistoryConfirmTitle),
             isPresented: $showClearHistoryConfirm,
             titleVisibility: .visible
         ) {
-            Button("消去", role: .destructive) {
+            Button(L(.contentViewClearHistoryButton), role: .destructive) {
                 viewModel.clearReceiveHistory()
             }
-            Button("キャンセル", role: .cancel) {}
+            Button(L(.commonCancel), role: .cancel) {}
         }
     }
 
@@ -153,7 +161,7 @@ struct ContentView: View {
                 .shadow(color: LynkOSTheme.accent.opacity(0.35), radius: 8, y: 4)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("サポート")
+        .accessibilityLabel(L(.contentViewSupportA11y))
     }
 
     private var clearHistoryFAB: some View {
@@ -168,7 +176,7 @@ struct ContentView: View {
                 .shadow(color: LynkOSTheme.accent.opacity(0.35), radius: 8, y: 4)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("転送済みファイルを消去")
+        .accessibilityLabel(L(.contentViewClearHistoryA11y))
     }
 
     private var headerBar: some View {

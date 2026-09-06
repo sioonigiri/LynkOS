@@ -1,52 +1,31 @@
 import { Link } from 'react-router-dom'
 import StaticPageLayout from '../components/StaticPageLayout'
+import { useLanguage } from '../i18n/useLanguage'
 import { SUPPORT_EMAIL, supportMailtoHref } from '../lib/contact'
 import { PAGE_METADATA, usePageMetadata } from '../lib/usePageMetadata'
 import styles from './SupportPage.module.css'
 
-const HOWTO_STEPS = [
-  '送信元と送信先の端末を同じWi-Fiネットワークへ接続します。',
-  'LynkOSを起動します。',
-  '送信したいファイルを選択します。',
-  '一覧に表示された送信先を選択すると、ファイルの送信が開始されます。',
-]
-
-const FAQ_ITEMS = [
-  {
-    question: '送信先が表示されません',
-    answer: '以下をご確認ください。',
-    bullets: [
-      '両方の端末が同じWi-Fiネットワークに接続されている',
-      '受信側でもLynkOS（またはWeb版）が開かれている',
-      'ネットワーク接続が正常である',
-    ],
-  },
-  {
-    question: 'どのようなファイルを送信できますか？',
-    answer: '写真・動画・PDF・書類など、さまざまなファイルを送受信できます。',
-  },
-]
-
 export default function SupportPage() {
   usePageMetadata(PAGE_METADATA.support)
+  const { t } = useLanguage()
+  const howToSteps = t('support.howToSteps')
+  const faqItems = t('support.faqItems')
 
   return (
     <StaticPageLayout>
       <article className={styles.article}>
         <header className={styles.pageHeader}>
-          <p className={styles.eyebrow}>Support</p>
-          <h1 className={styles.title}>LynkOS サポート</h1>
-          <p className={styles.intro}>
-            LynkOSをご利用いただきありがとうございます。同じWi-Fi上の端末間で、写真・動画・書類などを簡単に送受信できるファイル共有アプリです。
-          </p>
+          <p className={styles.eyebrow}>{t('support.eyebrow')}</p>
+          <h1 className={styles.title}>{t('support.title')}</h1>
+          <p className={styles.intro}>{t('support.intro')}</p>
         </header>
 
         <section className={styles.block} aria-labelledby="howto-heading">
           <h2 id="howto-heading" className={styles.blockTitle}>
-            使い方
+            {t('support.howToTitle')}
           </h2>
           <ol className={styles.steps}>
-            {HOWTO_STEPS.map((text, index) => (
+            {howToSteps.map((text, index) => (
               <li key={text} className={styles.step}>
                 <span className={styles.stepNum} aria-hidden>
                   {index + 1}
@@ -59,10 +38,10 @@ export default function SupportPage() {
 
         <section className={styles.block} aria-labelledby="faq-heading">
           <h2 id="faq-heading" className={styles.blockTitle}>
-            よくある質問
+            {t('support.faqTitle')}
           </h2>
           <div className={styles.faqList}>
-            {FAQ_ITEMS.map((item) => (
+            {faqItems.map((item) => (
               <div key={item.question} className={styles.faqItem}>
                 <h3 className={styles.faqQuestion}>
                   <span className={styles.faqMark} aria-hidden>
@@ -87,20 +66,18 @@ export default function SupportPage() {
 
         <section className={styles.contactBlock} aria-labelledby="contact-heading">
           <h2 id="contact-heading" className={styles.blockTitle}>
-            お問い合わせ
+            {t('support.contactTitle')}
           </h2>
-          <p className={styles.contactLead}>
-            ご質問、ご要望、不具合の報告は、メールでお送りください。
-          </p>
+          <p className={styles.contactLead}>{t('support.contactLead')}</p>
           <a href={supportMailtoHref} className={styles.mailButton}>
             {SUPPORT_EMAIL}
           </a>
-          <p className={styles.contactNote}>通常、数営業日以内に返信いたします。</p>
+          <p className={styles.contactNote}>{t('support.contactNote')}</p>
         </section>
 
         <p className={styles.backRow}>
           <Link to="/app" className={styles.backLink}>
-            アプリに戻る
+            {t('support.backToApp')}
           </Link>
         </p>
       </article>

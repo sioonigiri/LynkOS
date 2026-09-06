@@ -6,12 +6,13 @@ public enum ConnectionState: String, Sendable, Equatable {
     case connected
     case reconnecting
 
+    @MainActor
     public var label: String {
         switch self {
-        case .disconnected: "切断"
-        case .connecting: "接続中"
-        case .connected: "接続済み"
-        case .reconnecting: "再接続中"
+        case .disconnected: L(.connectionStateDisconnected)
+        case .connecting: L(.connectionStateConnecting)
+        case .connected: L(.connectionStateConnected)
+        case .reconnecting: L(.connectionStateReconnecting)
         }
     }
 }

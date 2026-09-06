@@ -47,6 +47,7 @@
 		B100000000000039 /* SupportAdaptiveTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100000000000039 /* SupportAdaptiveTheme.swift */; };
 		B100000000000040 /* SupportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100000000000040 /* SupportView.swift */; };
 		B100000000000041 /* SupportLegalDocumentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100000000000041 /* SupportLegalDocumentView.swift */; };
+		B100000000000042 /* LanguageToggleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100000000000042 /* LanguageToggleView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -113,6 +114,7 @@
 		F100000000000039 /* SupportAdaptiveTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportAdaptiveTheme.swift; sourceTree = "<group>"; };
 		F100000000000040 /* SupportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportView.swift; sourceTree = "<group>"; };
 		F100000000000041 /* SupportLegalDocumentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportLegalDocumentView.swift; sourceTree = "<group>"; };
+		F100000000000042 /* LanguageToggleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageToggleView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -206,6 +208,7 @@
 				F100000000000040 /* SupportView.swift */,
 				F100000000000041 /* SupportLegalDocumentView.swift */,
 				F100000000000037 /* DocumentExportPicker.swift */,
+				F100000000000042 /* LanguageToggleView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -441,6 +444,7 @@
 				B100000000000039 /* SupportAdaptiveTheme.swift in Sources */,
 				B100000000000040 /* SupportView.swift in Sources */,
 				B100000000000041 /* SupportLegalDocumentView.swift in Sources */,
+				B100000000000042 /* LanguageToggleView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

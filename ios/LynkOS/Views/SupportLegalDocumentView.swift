@@ -1,7 +1,23 @@
+import LynkOSCore
 import SwiftUI
 
+enum SupportLegalDocumentKind {
+    case privacy
+    case terms
+}
+
 struct SupportLegalDocumentView: View {
-    let document: SupportLegalDocument
+    let kind: SupportLegalDocumentKind
+    @ObservedObject private var loc = LocalizationManager.shared
+
+    /// 言語切り替え時にこの画面が開いたままでも即座に切り替わるよう、
+    /// 固定の `document` 値ではなく毎回 `SupportContent` から取り直す。
+    private var document: SupportLegalDocument {
+        switch kind {
+        case .privacy: SupportContent.privacyPolicy
+        case .terms: SupportContent.termsOfUse
+        }
+    }
 
     var body: some View {
         ScrollView {
@@ -53,6 +69,6 @@ struct SupportLegalDocumentView: View {
 
 #Preview {
     NavigationStack {
-        SupportLegalDocumentView(document: SupportContent.privacyPolicy)
+        SupportLegalDocumentView(kind: .privacy)
     }
 }

@@ -1,6 +1,8 @@
+import LynkOSCore
 import SwiftUI
 
 struct SaveReceivedFileDialog: View {
+    @ObservedObject private var loc = LocalizationManager.shared
     let file: PendingReceivedFile
     let onSaveToPhotos: () -> Void
     let onSaveToFiles: () -> Void
@@ -12,7 +14,7 @@ struct SaveReceivedFileDialog: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 16) {
-                Text("保存先を選択")
+                Text(L(.saveDialogTitle))
                     .font(.headline)
                     .foregroundStyle(LynkOSTheme.text)
 
@@ -36,8 +38,10 @@ struct SaveReceivedFileDialog: View {
                 VStack(spacing: 10) {
                     if file.isMedia {
                         Button(action: onSaveToPhotos) {
-                            Label("写真アプリに保存", systemImage: "photo.on.rectangle.angled")
+                            Label(L(.saveDialogSaveToPhotos), systemImage: "photo.on.rectangle.angled")
                                 .frame(maxWidth: .infinity)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(LynkOSTheme.accent)
@@ -45,21 +49,25 @@ struct SaveReceivedFileDialog: View {
 
                     if file.isMedia {
                         Button(action: onSaveToFiles) {
-                            Label("ファイルアプリに保存", systemImage: "folder")
+                            Label(L(.saveDialogSaveToFiles), systemImage: "folder")
                                 .frame(maxWidth: .infinity)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
                         }
                         .buttonStyle(.bordered)
                         .tint(LynkOSTheme.accent)
                     } else {
                         Button(action: onSaveToFiles) {
-                            Label("ファイルアプリに保存", systemImage: "folder")
+                            Label(L(.saveDialogSaveToFiles), systemImage: "folder")
                                 .frame(maxWidth: .infinity)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(LynkOSTheme.accent)
                     }
 
-                    Button("キャンセル", role: .cancel, action: onCancel)
+                    Button(L(.commonCancel), role: .cancel, action: onCancel)
                         .font(.subheadline)
                         .foregroundStyle(LynkOSTheme.textSub)
                 }

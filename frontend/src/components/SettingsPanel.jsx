@@ -1,10 +1,12 @@
 import { useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { getDeviceIconVisual, getDeviceEmoji, MAX_DEVICE_ICON_CHARS } from '../lib/deviceDisplay'
+import { useLanguage } from '../i18n/useLanguage'
 import IconCropDialog from './IconCropDialog'
 import styles from './SettingsPanel.module.css'
 
 export default function SettingsPanel({ myDevice, onClose, onSave }) {
+  const { t } = useLanguage()
   const [name, setName] = useState(myDevice?.name ?? '')
   const [icon, setIcon] = useState(() => {
     try {
@@ -38,20 +40,20 @@ export default function SettingsPanel({ myDevice, onClose, onSave }) {
 
   const handleSave = () => {
     if (!name.trim()) return
-    const t = icon.trim()
+    const iconValue = icon.trim()
     try {
-      if (t) {
-        if (t.startsWith('data:') && t.length > 2_800_000) {
-          window.alert('画像が大きすぎます。別の写真でお試しください。')
+      if (iconValue) {
+        if (iconValue.startsWith('data:') && iconValue.length > 2_800_000) {
+          window.alert(t('settingsPanel.iconTooLarge'))
           return
         }
-        if (t.startsWith('data:') && t.length > MAX_DEVICE_ICON_CHARS) {
+        if (iconValue.startsWith('data:') && iconValue.length > MAX_DEVICE_ICON_CHARS) {
           window.alert(
-            `アイコンは約 ${Math.round(MAX_DEVICE_ICON_CHARS / 1000)}k 文字以内にすると相手端末にも表示されます。`
+            t('settingsPanel.iconLimit', { k: Math.round(MAX_DEVICE_ICON_CHARS / 1000) })
           )
           return
         }
-        localStorage.setItem('lynkos-device-icon', t)
+        localStorage.setItem('lynkos-device-icon', iconValue)
       } else {
         localStorage.removeItem('lynkos-device-icon')
       }
@@ -76,8 +78,8 @@ export default function SettingsPanel({ myDevice, onClose, onSave }) {
 
         <div className={styles.body}>
           <div className={styles.header}>
-            <h2 className={styles.title}>設定</h2>
-            <button className={styles.closeBtn} onClick={onClose} aria-label="閉じる">
+            <h2 className={styles.title}>{t('settingsPanel.title')}</h2>
+            <button className={styles.closeBtn} onClick={onClose} aria-label={t('settingsPanel.closeAria')}>
               <span>✕</span>
             </button>
           </div>
@@ -97,11 +99,11 @@ export default function SettingsPanel({ myDevice, onClose, onSave }) {
                 </span>
               )}
             </div>
-            <span className={styles.previewName}>{name.trim() || '—'}</span>
+            <span className={styles.previewName}>{name.trim() || t('settingsPanel.namePlaceholderFallback')}</span>
           </div>
 
           <div className={styles.field}>
-            <span className={styles.label}>アイコン</span>
+            <span className={styles.label}>{t('settingsPanel.icon')}</span>
             <input
               ref={iconFileInputRef}
               type="file"
@@ -114,23 +116,23 @@ export default function SettingsPanel({ myDevice, onClose, onSave }) {
               className={styles.pickPhotoBtn}
               onClick={() => iconFileInputRef.current?.click()}
             >
-              写真
+              {t('settingsPanel.photo')}
             </button>
             {isCustomPhoto && (
               <button
                 type="button"
                 className={styles.clearIconBtn}
                 onClick={() => setIcon('')}
-                aria-label="アイコンを削除"
+                aria-label={t('settingsPanel.removeIconAria')}
               >
-                削除
+                {t('settingsPanel.remove')}
               </button>
             )}
           </div>
 
           <div className={styles.field}>
             <label className={styles.label} htmlFor="deviceName">
-              名前
+              {t('settingsPanel.name')}
             </label>
             <input
               id="deviceName"
@@ -148,11 +150,11 @@ export default function SettingsPanel({ myDevice, onClose, onSave }) {
             onClick={handleSave}
             disabled={!name.trim()}
           >
-            保存
+            {t('settingsPanel.save')}
           </button>
 
           <Link to="/" className={styles.landingLinkBtn} onClick={onClose}>
-            ランディングページに戻る
+            {t('settingsPanel.backToLanding')}
           </Link>
         </div>
       </div>

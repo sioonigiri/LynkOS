@@ -33,10 +33,12 @@ import {
   isAppleTouchDevice,
   iosSaveBlockedShort,
   iosSaveFailureMessage,
-  IOS_IMAGE_SAVE_TOAST,
+  iosImageSaveToast,
 } from './lib/iosFileSizePolicy'
 import { isInFlightTransfer, isCompletedTransfer } from './lib/transferPhases'
 import { logError } from './lib/logger'
+import { useLanguage } from './i18n/useLanguage'
+import LanguageToggle from './components/LanguageToggle'
 import styles from './App.module.css'
 
 /** 受信保存: 画像は iOS で共有シート（写真へ保存しやすい）を優先 */
@@ -47,17 +49,25 @@ function isIncomingImageForShare(t, name) {
   return false
 }
 
-const CONN_BADGE = {
-  connected:    { label: '接続',    cls: styles.connected    },
-  connecting:   { label: '接続中',  cls: styles.connecting   },
-  reconnecting: { label: '再接続', cls: styles.reconnecting },
-  disconnected: { label: '未接続',  cls: styles.disconnected },
-  failed:       { label: '失敗',    cls: styles.failed       },
+const CONN_BADGE_CLASS = {
+  connected:    styles.connected,
+  connecting:   styles.connecting,
+  reconnecting: styles.reconnecting,
+  disconnected: styles.disconnected,
+  failed:       styles.failed,
 }
 
 /** @typedef {'idle'|'waiting_response'|'connecting'|'transferring'} SendFlowPhase */
 
 export default function App() {
+  const { t } = useLanguage()
+  const CONN_BADGE = {
+    connected:    { label: t('connection.connected'),    cls: CONN_BADGE_CLASS.connected },
+    connecting:   { label: t('connection.connecting'),   cls: CONN_BADGE_CLASS.connecting },
+    reconnecting: { label: t('connection.reconnecting'), cls: CONN_BADGE_CLASS.reconnecting },
+    disconnected: { label: t('connection.disconnected'), cls: CONN_BADGE_CLASS.disconnected },
+    failed:       { label: t('connection.failed'),       cls: CONN_BADGE_CLASS.failed },
+  }
   /** @type {[SendFlowPhase, function]} */
   const [sendPhase, setSendPhase] = useState('idle')
   const [pickedFile, setPickedFile] = useState(null)
@@ -141,7 +151,7 @@ export default function App() {
           ? target
           : {
               deviceId: msg.from,
-              name:     msg.senderName || '相手',
+              name:     msg.senderName || t('device.peerFallback'),
               type:     msg.senderType === 'mobile' ? 'mobile' : 'desktop',
               platform: '',
               ...(msg.senderIcon || msg.device?.icon
@@ -158,7 +168,7 @@ export default function App() {
     onTransferReject: (msg) => {
       if (pendingRequestIdRef.current == null) return
       if (msg.requestId !== pendingRequestIdRef.current) return
-      setToast('拒否')
+      setToast(t('toast.rejected'))
       resetOutboundFlow()
     },
     onTransferCancel: (msg) => {
@@ -250,7 +260,7 @@ export default function App() {
         const now = Date.now()
         return [...prev, {
           id:        update.id,
-          name:      update.name  ?? '受信中...',
+          name:      update.name  ?? t('transferStatus.receivingInProgress'),
           size:      update.size  ?? 0,
           progress:  update.progress ?? 0,
           status:    'receiving',
@@ -258,11 +268,11 @@ export default function App() {
           updatedAt: now,
         }]
       }
-      return prev.map((t) =>
-        t.id === update.id ? { ...t, ...update, updatedAt: Date.now() } : t
+      return prev.map((x) =>
+        x.id === update.id ? { ...x, ...update, updatedAt: Date.now() } : x
       )
     })
-  }, [])
+  }, [t])
 
   const handleComplete = useCallback((id) => {
     const now = Date.now()
@@ -311,10 +321,10 @@ export default function App() {
     []
   )
 
-  const runDownload = useCallback(async (t) => {
-    if (!t || t.directSaved) return
-    const { storageKey, name, size } = t
-    const chunkCount = Number(t.chunkCount)
+  const runDownload = useCallback(async (transferItem) => {
+    if (!transferItem || transferItem.directSaved) return
+    const { storageKey, name, size } = transferItem
+    const chunkCount = Number(transferItem.chunkCount)
     if (storageKey == null || !Number.isFinite(chunkCount) || chunkCount < 1) return
 
     const INLINE_DL_MAX = 48 * 1024 * 1024
@@ -343,7 +353,7 @@ export default function App() {
      */
     const tryIosShareThenAnchor = async (blob, fileName) => {
       const mime =
-        String(t.mimeType || '').trim() ||
+        String(transferItem.mimeType || '').trim() ||
         blob.type ||
         suggestedMimeFromFileName(fileName) ||
         'application/octet-stream'
@@ -369,7 +379,7 @@ export default function App() {
         const buf = await rxReadChunk(storageKey, 0)
         if (!buf) return
         const mime =
-          String(t.mimeType || '').trim() || 'application/octet-stream'
+          String(transferItem.mimeType || '').trim() || 'application/octet-stream'
         const blob = new Blob([buf], { type: mime })
         if (isAppleTouch) {
           const cont = await tryIosShareThenAnchor(blob, name)
@@ -381,7 +391,7 @@ export default function App() {
       } else if (sz <= MEMORY_ASSEMBLY_MAX) {
         const blob = await rxAssembleBlob(storageKey, chunkCount)
         const mime =
-          String(t.mimeType || '').trim() ||
+          String(transferItem.mimeType || '').trim() ||
           blob.type ||
           'application/octet-stream'
         const typedBlob =
@@ -419,12 +429,12 @@ export default function App() {
 
       await rxDeleteTransfer(storageKey)
       const now = Date.now()
-      if (isAppleTouchDevice() && isIncomingImageForShare(t, name)) {
-        setToast(IOS_IMAGE_SAVE_TOAST)
+      if (isAppleTouchDevice() && isIncomingImageForShare(transferItem, name)) {
+        setToast(iosImageSaveToast())
       }
       setTransfers((prev) => {
         const next = prev.map((x) =>
-          x.id === t.id
+          x.id === transferItem.id
             ? {
                 ...x,
                 status:     'received_saved',
@@ -444,31 +454,31 @@ export default function App() {
   }, [])
 
   const handleFailed = useCallback(() => {
-    setToast('接続できませんでした')
+    setToast(t('toast.connectFailed'))
     resetOutboundFlow()
-  }, [resetOutboundFlow])
+  }, [resetOutboundFlow, t])
 
   const handleTransferAbort = useCallback(() => {
     const ids = activeBatchIdsRef.current
     if (ids?.length) {
       setTransfers((prev) =>
-        prev.map((t) =>
-          ids.includes(t.id) ? { ...t, status: 'error', progress: 0, updatedAt: Date.now() } : t
+        prev.map((x) =>
+          ids.includes(x.id) ? { ...x, status: 'error', progress: 0, updatedAt: Date.now() } : x
         )
       )
     }
-    setToast('相手が切断しました')
+    setToast(t('toast.peerDisconnected'))
     resetOutboundFlow()
-  }, [resetOutboundFlow])
+  }, [resetOutboundFlow, t])
 
   useEffect(() => {
     if (sendPhase !== 'waiting_response') return undefined
     const tid = window.setTimeout(() => {
-      setToast('相手からの応答がありませんでした')
+      setToast(t('toast.noResponseFromPeer'))
       cancelWaiting()
     }, 90_000)
     return () => clearTimeout(tid)
-  }, [sendPhase, cancelWaiting])
+  }, [sendPhase, cancelWaiting, t])
 
   const {
     sendFiles,
@@ -506,12 +516,12 @@ export default function App() {
     if (sendPhase !== 'connecting') return undefined
     const tid = window.setTimeout(() => {
       if (!transportReady) {
-        setToast('接続できませんでした')
+        setToast(t('toast.connectFailed'))
         resetOutboundFlow()
       }
     }, 120_000)
     return () => clearTimeout(tid)
-  }, [sendPhase, transportReady, resetOutboundFlow])
+  }, [sendPhase, transportReady, resetOutboundFlow, t])
 
   /** 受信側はファイル選択がないため、P2P 確立後に接続 UI を外す */
   useEffect(() => {
@@ -610,7 +620,7 @@ export default function App() {
         : undefined,
     })
     if (!ok) {
-      setToast('失敗')
+      setToast(t('toast.failed'))
       pendingRequestIdRef.current = null
       pendingPeerRef.current = null
       pendingPeerIdRef.current = null
@@ -647,7 +657,7 @@ export default function App() {
     flushSync(() => {
       setWebrtcPeer({
         deviceId: head.from,
-        name:     head.senderName || '送信元',
+        name:     head.senderName || t('device.senderFallback'),
         type:     head.senderType === 'mobile' ? 'mobile' : 'desktop',
         platform: '',
         ...(head.senderIcon || head.device?.icon
@@ -695,7 +705,7 @@ export default function App() {
           const head = incomingTransfers[0]
           const fl = head.files || (head.file ? [head.file] : [])
           return {
-            senderName:         head.senderName ?? '近くのデバイス',
+            senderName:         head.senderName ?? t('device.nearbyFallback'),
             senderType:         head.senderType ?? 'desktop',
             senderIcon:         head.senderIcon ?? head.device?.icon,
             files:              fl,
@@ -719,11 +729,11 @@ export default function App() {
 
   const badge =
     sendPhase === 'waiting_response'
-      ? { label: '待機', cls: styles.connecting }
+      ? { label: t('app.waiting'), cls: styles.connecting }
       : sendPhase === 'transferring'
-        ? { label: '送信中', cls: styles.connecting }
+        ? { label: t('app.sending'), cls: styles.connecting }
         : sendPhase === 'connecting'
-          ? { label: '接続中', cls: styles.connecting }
+          ? { label: t('connection.connecting'), cls: styles.connecting }
           : CONN_BADGE[connectionState] ?? CONN_BADGE.disconnected
 
   const listDisabled =
@@ -747,7 +757,7 @@ export default function App() {
   return (
     <div className={styles.layout}>
       <header className={styles.header}>
-        <Link to="/" className={styles.logo} aria-label="トップページへ">
+        <Link to="/" className={styles.logo} aria-label={t('nav.topPageAria')}>
           <svg className={styles.logoIcon} width="28" height="28" viewBox="0 0 28 28" fill="none">
             <polygon
               points="14,2 25,8 25,20 14,26 3,20 3,8"
@@ -760,27 +770,30 @@ export default function App() {
           <span className={styles.logoText}>LynkOS</span>
         </Link>
 
-        {displayDevice && myHeaderIcon && (
-          <button
-            className={styles.myDeviceBtn}
-            onClick={() => setShowSettings(true)}
-            title="設定"
-          >
-            <span
-              className={[
-                styles.myDeviceIcon,
-                myHeaderIcon.kind === 'url' ? styles.myDeviceIconPhoto : '',
-              ].filter(Boolean).join(' ')}
+        <div className={styles.headerRight}>
+          <LanguageToggle />
+          {displayDevice && myHeaderIcon && (
+            <button
+              className={styles.myDeviceBtn}
+              onClick={() => setShowSettings(true)}
+              title={t('app.settingsTitleAttr')}
             >
-              {myHeaderIcon.kind === 'url' ? (
-                <img src={myHeaderIcon.href} alt="" className={styles.myDeviceIconImg} />
-              ) : (
-                myHeaderIcon.text
-              )}
-            </span>
-            <span className={styles.myDeviceName}>{displayDevice.name}</span>
-          </button>
-        )}
+              <span
+                className={[
+                  styles.myDeviceIcon,
+                  myHeaderIcon.kind === 'url' ? styles.myDeviceIconPhoto : '',
+                ].filter(Boolean).join(' ')}
+              >
+                {myHeaderIcon.kind === 'url' ? (
+                  <img src={myHeaderIcon.href} alt="" className={styles.myDeviceIconImg} />
+                ) : (
+                  myHeaderIcon.text
+                )}
+              </span>
+              <span className={styles.myDeviceName}>{displayDevice.name}</span>
+            </button>
+          )}
+        </div>
       </header>
 
       <main className={styles.main}>
@@ -797,7 +810,7 @@ export default function App() {
                 type="button"
                 className={styles.iconClear}
                 onClick={clearPickedFile}
-                aria-label="ファイルを外す"
+                aria-label={t('app.clearFileAria')}
               >
                 ×
               </button>
@@ -816,13 +829,13 @@ export default function App() {
             <div className={styles.compactStatus}>
               <span className={`${styles.connBadge} ${badge.cls}`}>{badge.label}</span>
               {sendPhase === 'waiting_response' && (
-                <button type="button" className={styles.cancelBtn} onClick={cancelWaiting} aria-label="キャンセル">
+                <button type="button" className={styles.cancelBtn} onClick={cancelWaiting} aria-label={t('app.cancelWaitingAria')}>
                   ×
                 </button>
               )}
               {connectionState === 'failed' && (
                 <button type="button" className={styles.retryBtn} onClick={reconnect}>
-                  再試行
+                  {t('app.retry')}
                 </button>
               )}
             </div>
@@ -850,7 +863,7 @@ export default function App() {
                   <button
                     type="button"
                     className={styles.clearBtn}
-                    aria-label="完了した項目を一覧から外す"
+                    aria-label={t('app.clearCompletedAria')}
                     onClick={() =>
                       setTransfers((prev) => {
                         const next = prev.filter(
@@ -869,14 +882,14 @@ export default function App() {
                       })
                     }
                   >
-                    消去
+                    {t('app.clearCompleted')}
                   </button>
                 )}
-                {completedTransfers.some((t) => t.status === 'received_saved') && (
+                {completedTransfers.some((x) => x.status === 'received_saved') && (
                   <button
                     type="button"
                     className={styles.clearBtn}
-                    aria-label="保存済みの履歴を消去"
+                    aria-label={t('app.clearSavedAria')}
                     onClick={() =>
                       setTransfers((prev) => {
                         const next = prev.filter((t) => t.status !== 'received_saved')
@@ -890,7 +903,7 @@ export default function App() {
                       })
                     }
                   >
-                    履歴消
+                    {t('app.clearSaved')}
                   </button>
                 )}
             </div>
@@ -949,7 +962,7 @@ export default function App() {
       )}
 
       {!hideSupportFab && (
-        <Link to="/support" className={styles.supportFab} aria-label="サポート" title="サポート">
+        <Link to="/support" className={styles.supportFab} aria-label={t('app.supportAria')} title={t('app.supportAria')}>
           ?
         </Link>
       )}

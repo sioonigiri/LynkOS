@@ -1,12 +1,16 @@
 import { useEffect } from 'react'
+import { useLanguage } from '../i18n/useLanguage'
 
 /**
  * Vite + React Router 向けのページ metadata（title / description）。
- * @param {{ title: string, description: string }} metadata
+ * 言語切り替え時にも再適用されるよう、`useLanguage()` の `language` を依存に含める。
+ * @param {{ titleKey: string, descriptionKey: string }} metadata
  */
-export function usePageMetadata({ title, description }) {
+export function usePageMetadata({ titleKey, descriptionKey }) {
+  const { language, t } = useLanguage()
+
   useEffect(() => {
-    document.title = title
+    document.title = t(titleKey)
 
     let meta = document.querySelector('meta[name="description"]')
     if (!meta) {
@@ -14,25 +18,14 @@ export function usePageMetadata({ title, description }) {
       meta.setAttribute('name', 'description')
       document.head.appendChild(meta)
     }
-    meta.setAttribute('content', description)
-  }, [title, description])
+    meta.setAttribute('content', t(descriptionKey))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language, titleKey, descriptionKey])
 }
 
-/** ルートごとの SEO metadata 定義 */
+/** ルートごとの SEO metadata 定義（キーは translations.js の metadata.* を参照） */
 export const PAGE_METADATA = {
-  landing: {
-    title: 'LynkOS',
-    description:
-      '同じネットワーク上の端末同士で、写真・動画・書類などを簡単に送受信できるファイル共有アプリ。',
-  },
-  support: {
-    title: 'LynkOS サポート',
-    description:
-      'LynkOS の使い方、よくある質問、お問い合わせ先。同じ Wi-Fi 上の端末間でファイルを送受信するアプリのサポートページです。',
-  },
-  privacy: {
-    title: 'プライバシーポリシー',
-    description:
-      'LynkOS のプライバシーポリシー。取得する情報、利用目的、第三者提供、セキュリティについて。',
-  },
+  landing: { titleKey: 'metadata.landingTitle', descriptionKey: 'metadata.landingDescription' },
+  support: { titleKey: 'metadata.supportTitle', descriptionKey: 'metadata.supportDescription' },
+  privacy: { titleKey: 'metadata.privacyTitle', descriptionKey: 'metadata.privacyDescription' },
 }

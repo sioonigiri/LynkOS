@@ -1,7 +1,9 @@
+import LynkOSCore
 import PhotosUI
 import SwiftUI
 
 struct SettingsView: View {
+    @ObservedObject private var loc = LocalizationManager.shared
     @EnvironmentObject private var viewModel: AppViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var draftName: String = ""
@@ -55,7 +57,7 @@ struct SettingsView: View {
 
     private var header: some View {
         HStack {
-            Text("設定")
+            Text(L(.settingsTitle))
                 .font(.title2.bold())
                 .foregroundStyle(LynkOSTheme.text)
             Spacer()
@@ -81,18 +83,19 @@ struct SettingsView: View {
     }
 
     private var iconSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            fieldLabel("アイコン")
+        let photoButtonTitle = L(.settingsPhotoButton)
+        return VStack(alignment: .leading, spacing: 10) {
+            fieldLabel(L(.settingsIconLabel))
             HStack(spacing: 12) {
                 PhotosPicker(selection: $iconPhotoItem, matching: .images) {
-                    Text("写真")
+                    Text(photoButtonTitle)
                         .font(.subheadline.weight(.semibold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
                         .background(LynkOSTheme.surface2, in: RoundedRectangle(cornerRadius: 12))
                 }
                 if viewModel.deviceIconData != nil {
-                    Button("削除") {
+                    Button(L(.commonDelete)) {
                         viewModel.clearDeviceIcon()
                     }
                     .font(.subheadline.weight(.semibold))
@@ -107,7 +110,7 @@ struct SettingsView: View {
 
     private var nameSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            fieldLabel("名前")
+            fieldLabel(L(.settingsNameLabel))
             TextField("", text: $draftName)
                 .font(.body)
                 .padding(14)
@@ -120,15 +123,15 @@ struct SettingsView: View {
     private var developerModeSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Toggle(isOn: $draftDeveloperMode) {
-                Text("デベロッパーモード")
+                Text(L(.settingsDeveloperMode))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(LynkOSTheme.text)
             }
             .tint(LynkOSTheme.accent)
 
             if draftDeveloperMode {
-                fieldLabel("シグナリングサーバー（上書き）")
-                TextField("空欄で LAN 自動検出", text: $draftServerURL, axis: .vertical)
+                fieldLabel(L(.settingsSignalingOverrideLabel))
+                TextField(L(.settingsServerPlaceholder), text: $draftServerURL, axis: .vertical)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .keyboardType(.URL)
@@ -136,7 +139,7 @@ struct SettingsView: View {
                     .padding(14)
                     .background(LynkOSTheme.surface, in: RoundedRectangle(cornerRadius: 12))
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(LynkOSTheme.border, lineWidth: 1))
-                Text("通常は同一 Wi-Fi 上の LynkOS を自動検出します。開発・検証時のみ URL を手入力してください。")
+                Text(L(.settingsServerHint))
                     .font(.caption)
                     .foregroundStyle(LynkOSTheme.textMuted)
             }
@@ -156,7 +159,7 @@ struct SettingsView: View {
             )
             dismiss()
         } label: {
-            Text("保存")
+            Text(L(.commonSave))
                 .font(.headline)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)

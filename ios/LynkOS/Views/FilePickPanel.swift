@@ -1,8 +1,10 @@
+import LynkOSCore
 import PhotosUI
 import SwiftUI
 import UniformTypeIdentifiers
 
 struct FilePickPanel: View {
+    @ObservedObject private var loc = LocalizationManager.shared
     let pickedFile: PickedFileItem?
     let disabled: Bool
     let onClear: () -> Void
@@ -23,19 +25,19 @@ struct FilePickPanel: View {
         }
         .buttonStyle(.plain)
         .disabled(disabled)
-        .confirmationDialog("選択", isPresented: $showSourcePicker, titleVisibility: .visible) {
-            Button("写真・動画") {
+        .confirmationDialog(L(.filePickSourceTitle), isPresented: $showSourcePicker, titleVisibility: .visible) {
+            Button(L(.filePickPhotoVideo)) {
                 showPhotosPicker = true
             }
-            Button("ファイル") {
+            Button(L(.filePickFile)) {
                 showFileImporter = true
             }
             if pickedFile != nil {
-                Button("選択を解除", role: .destructive) {
+                Button(L(.filePickDeselect), role: .destructive) {
                     onClear()
                 }
             }
-            Button("キャンセル", role: .cancel) {}
+            Button(L(.commonCancel), role: .cancel) {}
         }
         .photosPicker(
             isPresented: $showPhotosPicker,
@@ -84,14 +86,17 @@ struct FilePickPanel: View {
                 VStack(spacing: 8) {
                     Text("⏳")
                         .font(.title)
-                    Text("待機")
+                    Text(L(.filePickWaiting))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(LynkOSTheme.textSub)
                 }
             } else {
-                Text("画像・ファイルを選択")
+                Text(L(.filePickPrompt))
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(LynkOSTheme.textSub)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 12)
             }
         }
         .frame(maxWidth: .infinity)

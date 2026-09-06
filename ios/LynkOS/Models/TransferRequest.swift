@@ -37,6 +37,7 @@ struct TransferRequest: Identifiable, Equatable {
     let senderIcon: String?
     let files: [TransferFileMeta]
 
+    @MainActor
     init?(message: InboxMessage) {
         guard message.type == "transfer_request" else { return nil }
         let raw = message.raw
@@ -47,7 +48,7 @@ struct TransferRequest: Identifiable, Equatable {
 
         self.requestId = requestId
         self.from = from
-        self.senderName = raw["senderName"] as? String ?? "近くのデバイス"
+        self.senderName = raw["senderName"] as? String ?? L(.deviceNearbyFallbackName)
         self.senderType = raw["senderType"] as? String ?? "desktop"
         self.senderIcon = (raw["senderIcon"] as? String) ?? (raw["device"] as? [String: Any])?["icon"] as? String
 

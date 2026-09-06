@@ -1,6 +1,8 @@
+import LynkOSCore
 import SwiftUI
 
 struct SupportView: View {
+    @ObservedObject private var loc = LocalizationManager.shared
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
@@ -16,7 +18,7 @@ struct SupportView: View {
             .padding(20)
         }
         .background(SupportAdaptiveTheme.background)
-        .navigationTitle("サポート")
+        .navigationTitle(L(.supportTitle))
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -132,11 +134,11 @@ struct SupportView: View {
     }
 
     private var legalLinksSection: some View {
-        SupportSectionCard(title: "法務") {
+        SupportSectionCard(title: L(.supportLegalSectionTitle)) {
             VStack(spacing: 0) {
                 legalNavigationLink(
                     title: SupportContent.privacyPolicy.title,
-                    document: SupportContent.privacyPolicy
+                    kind: .privacy
                 )
 
                 Divider()
@@ -145,15 +147,15 @@ struct SupportView: View {
 
                 legalNavigationLink(
                     title: SupportContent.termsOfUse.title,
-                    document: SupportContent.termsOfUse
+                    kind: .terms
                 )
             }
         }
     }
 
-    private func legalNavigationLink(title: String, document: SupportLegalDocument) -> some View {
+    private func legalNavigationLink(title: String, kind: SupportLegalDocumentKind) -> some View {
         NavigationLink {
-            SupportLegalDocumentView(document: document)
+            SupportLegalDocumentView(kind: kind)
         } label: {
             HStack {
                 Text(title)

@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { useLanguage } from '../i18n/useLanguage'
 import styles from './IconCropDialog.module.css'
 
 const VIEW = 200
@@ -26,6 +27,7 @@ function clampPos(px, py, nw, nh, fit, scale) {
  * }} props
  */
 export default function IconCropDialog({ onClose, onApply, initialFile = null }) {
+  const { t } = useLanguage()
   const fileInputRef = useRef(null)
   const imgRef = useRef(null)
   const dragRef = useRef(null)
@@ -164,10 +166,10 @@ export default function IconCropDialog({ onClose, onApply, initialFile = null })
         aria-labelledby="icon-crop-title"
       >
         <h2 id="icon-crop-title" className={styles.title}>
-          アイコンの調整
+          {t('iconCrop.title')}
         </h2>
         <p className={styles.lead}>
-          写真を選び、ドラッグで位置を合わせます（ホイールで拡大）
+          {t('iconCrop.lead')}
         </p>
 
         <input
@@ -184,10 +186,10 @@ export default function IconCropDialog({ onClose, onApply, initialFile = null })
             className={styles.pickPhotoBtn}
             onClick={() => fileInputRef.current?.click()}
           >
-            写真を選ぶ
+            {t('iconCrop.pickPhoto')}
           </button>
         ) : !src && expectingImage ? (
-          <p className={styles.loadingText}>読み込み中…</p>
+          <p className={styles.loadingText}>{t('iconCrop.loading')}</p>
         ) : (
           <>
             <div
@@ -218,14 +220,14 @@ export default function IconCropDialog({ onClose, onApply, initialFile = null })
 
             <div className={styles.actions}>
               <button type="button" className={styles.btnSecondary} onClick={onClose}>
-                キャンセル
+                {t('iconCrop.cancel')}
               </button>
               <button
                 type="button"
                 className={styles.btnGhost}
                 onClick={() => fileInputRef.current?.click()}
               >
-                別の写真
+                {t('iconCrop.changePhoto')}
               </button>
               <button
                 type="button"
@@ -233,7 +235,7 @@ export default function IconCropDialog({ onClose, onApply, initialFile = null })
                 onClick={handleApply}
                 disabled={!natural.w}
               >
-                決定
+                {t('iconCrop.apply')}
               </button>
             </div>
           </>
@@ -241,7 +243,7 @@ export default function IconCropDialog({ onClose, onApply, initialFile = null })
 
         {!src && !expectingImage && (
           <button type="button" className={styles.btnSecondaryWide} onClick={onClose}>
-            閉じる
+            {t('iconCrop.close')}
           </button>
         )}
       </div>

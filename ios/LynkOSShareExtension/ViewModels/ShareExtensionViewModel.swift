@@ -71,7 +71,7 @@ final class ShareExtensionViewModel: ObservableObject {
 
         attachment = await SharedAttachmentLoader.load(from: items)
         guard attachment != nil else {
-            screenState = .attachmentError("共有内容を読み込めませんでした")
+            screenState = .attachmentError(L(.shareAttachmentLoadFailed))
             return
         }
 
@@ -126,7 +126,7 @@ final class ShareExtensionViewModel: ObservableObject {
         guard device.isTransferable else { return }
         guard let attachment else { return }
         guard attachment.stagedData != nil || attachment.stagedURL != nil else {
-            screenState = .transferError("ファイルを読み込めませんでした")
+            screenState = .transferError(L(.toastFileLoadFailed))
             return
         }
         guard !isTransferActive else { return }
@@ -194,7 +194,7 @@ final class ShareExtensionViewModel: ObservableObject {
 
         guard await waitForInboxConnected() else {
             resetTransferState()
-            screenState = .transferError("サーバーに接続できません")
+            screenState = .transferError(L(.shareServerUnreachable))
             return
         }
 
@@ -202,7 +202,7 @@ final class ShareExtensionViewModel: ObservableObject {
             try inbox.send(payload)
         } catch {
             resetTransferState()
-            screenState = .transferError("転送リクエストの送信に失敗しました")
+            screenState = .transferError(L(.toastSendRequestFailed))
         }
     }
 
@@ -225,7 +225,7 @@ final class ShareExtensionViewModel: ObservableObject {
               message.raw["from"] as? String == peerId else { return }
         guard let attachment else {
             resetTransferState()
-            screenState = .transferError("共有ファイルが見つかりません")
+            screenState = .transferError(L(.shareSharedFileNotFound))
             return
         }
 
@@ -238,7 +238,7 @@ final class ShareExtensionViewModel: ObservableObject {
         if case let .waitingAccept(name) = screenState {
             peerName = name
         } else {
-            peerName = "デバイス"
+            peerName = L(.shareGenericDeviceFallbackName)
         }
 
         screenState = .connecting(peerName: peerName)
@@ -282,7 +282,7 @@ final class ShareExtensionViewModel: ObservableObject {
             await MainActor.run {
                 guard let self, case .waitingAccept = self.screenState else { return }
                 self.resetTransferState()
-                self.screenState = .transferError("\(peerName) からの応答がありませんでした")
+                self.screenState = .transferError(L(.shareNoResponseFromPeer, peerName))
             }
         }
     }
@@ -312,8 +312,8 @@ final class ShareExtensionViewModel: ObservableObject {
             Task { @MainActor in
                 self?.bonjourDevices = found
                 self?.bonjourHint = found.isEmpty
-                    ? "Bonjour: 近くの LynkOS を探索中…"
-                    : "Bonjour: \(found.count) 件"
+                    ? L(.shareBonjourSearching)
+                    : L(.shareBonjourFoundCount, found.count)
                 self?.mergeDeviceRows()
             }
         }
@@ -368,7 +368,7 @@ extension ShareExtensionViewModel: WebRTCTransferSessionDelegate {
         case .sending(let name, _):
             peerName = name
         default:
-            peerName = "デバイス"
+            peerName = L(.shareGenericDeviceFallbackName)
         }
         screenState = .sending(peerName: peerName, progress: progress)
     }
@@ -391,12 +391,18 @@ extension ShareExtensionViewModel: WebRTCTransferSessionDelegate {
         screenState = .completed
     }
 
+    /// WebRTCTransferSession が接続断・切断系として報告する既知メッセージは、
+    /// 「送信失敗:」を付けずそのまま表示する（AppViewModel と同じ判定方式）。
+    private static var disconnectStyleFailureMessages: Set<String> {
+        [L(.errorServerDisconnected), L(.errorPeerDisconnected), L(.errorConnectionLost), L(.toastNoResponse)]
+    }
+
     func transferSession(_ session: WebRTCTransferSession, didFail message: String) {
         resetTransferState()
         screenState = .transferError(
-            message.contains("切断") || message.contains("接続") || message.contains("応答")
+            Self.disconnectStyleFailureMessages.contains(message)
                 ? message
-                : "送信失敗: \(message)"
+                : L(.errorSendFailedPrefix, message)
         )
     }
 }

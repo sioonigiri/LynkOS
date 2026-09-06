@@ -1,6 +1,8 @@
+import LynkOSCore
 import SwiftUI
 
 struct TransferStatusView: View {
+    @ObservedObject private var loc = LocalizationManager.shared
     let activeTransfer: AppViewModel.ActiveTransferDisplay?
     let completedRecords: [ReceivedFileRecord]
 
@@ -20,9 +22,9 @@ struct TransferStatusView: View {
         } else {
             VStack(spacing: 12) {
                 if hasInFlight || hasCompleted {
-                    Picker("転送", selection: $tab) {
-                        Text("進行").tag(Tab.inFlight)
-                        Text("完了").tag(Tab.completed)
+                    Picker(L(.transferPickerLabel), selection: $tab) {
+                        Text(L(.transferTabInFlight)).tag(Tab.inFlight)
+                        Text(L(.transferTabCompleted)).tag(Tab.completed)
                     }
                     .pickerStyle(.segmented)
                     .onAppear { syncTab() }

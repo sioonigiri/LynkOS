@@ -36,3 +36,9 @@
   font-size: 0.75rem;
   color: var(--text-muted);
 }
+
+.langRow {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}

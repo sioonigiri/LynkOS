@@ -1,13 +1,15 @@
+import LynkOSCore
 import SwiftUI
 
-/// デベロッパーモード時の補助表示（接続デバッグ・Signaling テストは非表示）。
+/// デベロッパーモード時の補助表示(接続デバッグ・Signaling テストは非表示)。
 struct DeveloperPanelView: View {
+    @ObservedObject private var loc = LocalizationManager.shared
     @EnvironmentObject private var viewModel: AppViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if viewModel.inboxEvents.isEmpty {
-                Text("Inbox イベントはここに表示されます")
+                Text(L(.debugInboxEventsPlaceholder))
                     .font(.caption)
                     .foregroundStyle(LynkOSTheme.textMuted)
             } else {

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import SiteFooter from './components/SiteFooter'
+import { useLanguage } from './i18n/useLanguage'
 import { PAGE_METADATA, usePageMetadata } from './lib/usePageMetadata'
 import styles from './LandingPage.module.css'
 
@@ -8,36 +9,20 @@ import styles from './LandingPage.module.css'
  * スクリーンショット: frontend/public/landing/
  * - step-2-3.png … ③の下
  * - step-4.png   … ④の下
+ * 文言・alt は translations.js の landing.steps を参照する。
  */
-const STEPS = [
-  { n: 1, text: '送信端末・受信端末の両方でこのアプリを開く' },
-  { n: 2, text: '送信端末で送信したいファイルを選択' },
-  {
-    n: 3,
-    text: '送信先の端末を選択',
-    imageAfter: {
-      src: '/landing/step-2-3.png',
-      alt: 'ファイルを選択し、送信先を選ぶ画面',
-    },
-  },
-  {
-    n: 4,
-    text: '受信端末で受信を許可',
-    imageAfter: {
-      src: '/landing/step-4.png',
-      alt: '受信を許可する画面',
-    },
-  },
-  { n: 5, text: '転送開始' },
-]
+const STEP_IMAGES = {
+  3: '/landing/step-2-3.png',
+  4: '/landing/step-4.png',
+}
 
-function StepScreenshot({ src, alt }) {
+function StepScreenshot({ src, alt, loadFailedText }) {
   const [failed, setFailed] = useState(false)
 
   return (
     <div className={styles.stepShot}>
       {failed ? (
-        <span className={styles.stepShotPlaceholder}>画像を読み込めませんでした</span>
+        <span className={styles.stepShotPlaceholder}>{loadFailedText}</span>
       ) : (
         <img
           src={src}
@@ -64,6 +49,8 @@ function StepLine({ n, text }) {
 
 export default function LandingPage() {
   usePageMetadata(PAGE_METADATA.landing)
+  const { t } = useLanguage()
+  const steps = t('landing.steps')
 
   return (
     <div className={styles.page}>
@@ -80,32 +67,36 @@ export default function LandingPage() {
           </svg>
         </div>
         <h1 className={styles.title}>LynkOS</h1>
-        <p className={styles.lead}>
-          同じネットワークに接続している端末同士で、簡単にファイルを送受信できます。
-        </p>
+        <p className={styles.lead}>{t('landing.lead')}</p>
         <Link to="/app" className={styles.cta}>
-          使ってみる
+          {t('landing.cta')}
         </Link>
-        <p className={styles.note}>
-          ※送受信を行うには、送信側・受信側の両方でこのアプリを開いておく必要があります。
-        </p>
+        <p className={styles.note}>{t('landing.note')}</p>
       </header>
 
       <section className={styles.section} aria-labelledby="howto-heading">
         <h2 id="howto-heading" className={styles.sectionTitle}>
-          使い方
+          {t('landing.howToTitle')}
         </h2>
         <ol className={styles.steps}>
-          {STEPS.map((step) => (
-            <li key={step.n} className={styles.step}>
-              <StepLine n={step.n} text={step.text} />
-              {step.imageAfter ? (
-                <div className={styles.stepPhotoFrame}>
-                  <StepScreenshot src={step.imageAfter.src} alt={step.imageAfter.alt} />
-                </div>
-              ) : null}
-            </li>
-          ))}
+          {steps.map((step, index) => {
+            const n = index + 1
+            const imageSrc = STEP_IMAGES[n]
+            return (
+              <li key={n} className={styles.step}>
+                <StepLine n={n} text={step.text} />
+                {imageSrc ? (
+                  <div className={styles.stepPhotoFrame}>
+                    <StepScreenshot
+                      src={imageSrc}
+                      alt={step.imageAlt}
+                      loadFailedText={t('landing.imageLoadFailed')}
+                    />
+                  </div>
+                ) : null}
+              </li>
+            )
+          })}
         </ol>
       </section>
 

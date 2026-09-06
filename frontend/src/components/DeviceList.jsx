@@ -1,5 +1,6 @@
 import styles from './DeviceList.module.css'
 import { getDeviceIconVisual } from '../lib/deviceDisplay'
+import { useLanguage } from '../i18n/useLanguage'
 
 function DeviceBubbleIcon({ device }) {
   const v = getDeviceIconVisual(device)
@@ -16,6 +17,8 @@ export default function DeviceList({
   disabled = false,
   flashDeviceId = null,
 }) {
+  const { t } = useLanguage()
+
   // サーバー接続エラー
   if (error) {
     return (
@@ -25,7 +28,7 @@ export default function DeviceList({
             <span className={styles.radarIcon}>⚠️</span>
           </div>
         </div>
-        <p className={styles.emptyText}>オフライン</p>
+        <p className={styles.emptyText}>{t('device.offline')}</p>
       </div>
     )
   }
@@ -42,7 +45,7 @@ export default function DeviceList({
             <span className={styles.radarIcon}>📡</span>
           </div>
         </div>
-        <p className={styles.emptyText}>検索中</p>
+        <p className={styles.emptyText}>{t('device.searching')}</p>
       </div>
     )
   }

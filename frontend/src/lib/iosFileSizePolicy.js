@@ -1,7 +1,14 @@
 /**
  * concept.md / iPhone・iPad 向けファイルサイズティア（短文・非技術）
  * ~100MB: 通常 / 100〜300MB: 注意 / 300MB〜: 続行確認（UIで明示）
+ *
+ * しきい値・判定ロジックは変更しない。ユーザー向け文言のみ translations.js から取得する。
  */
+import { getCurrentLanguage, translate } from '../i18n/core'
+
+function tt(key, params) {
+  return translate(getCurrentLanguage(), key, params)
+}
 
 export const MB = 1024 * 1024
 
@@ -31,46 +38,54 @@ export function formatMb(bytes) {
 }
 
 // ── ダウンロード確認（2 行以内・非技術）────────────────
+// 定数ではなく関数にして、呼び出し時点の表示言語を反映する。
 
-export const IOS_DL_NOTICE = '約100MB超'
+export function iosDlNotice() {
+  return tt('ios.dlNotice')
+}
 
-export const IOS_DL_CONFIRM_300 = '約300MB超・続行？'
+export function iosDlConfirm300() {
+  return tt('ios.dlConfirm300')
+}
 
-export const IOS_DL_BLOCKED = 'この端末では不可の可能性'
-
-export const IOS_DL_SAVE_FAILED =
-  '保存に失敗しました'
+export function iosDlBlocked() {
+  return tt('ios.dlBlocked')
+}
 
 /** メモリ組み立て上限などで保存開始できないとき */
 export function iosSaveBlockedShort() {
-  return IOS_DL_BLOCKED
+  return iosDlBlocked()
 }
 
 export function iosSaveFailureMessage() {
-  return IOS_DL_SAVE_FAILED
+  return tt('ios.dlSaveFailed')
 }
 
 /** iOS Safari: Web から直接フォトライブラリへ入れないため、保存後の案内 */
-/** iOS Safari: Web から直接フォトライブラリへ入れないため、保存後の案内 */
-export const IOS_IMAGE_PHOTOS_HINT =
-  '「ファイル」に保存されます。写真へは共有から「写真に保存」。'
+export function iosImagePhotosHint() {
+  return tt('ios.imagePhotosHint')
+}
 
 /** 保存確認モーダル内（短文） */
-export const IOS_IMAGE_CONFIRM_HINT =
-  '共有シートから「写真に保存」で追加できます。'
+export function iosImageConfirmHint() {
+  return tt('ios.imageConfirmHint')
+}
 
 /** トースト用 */
-export const IOS_IMAGE_SAVE_TOAST =
-  '保存しました'
+export function iosImageSaveToast() {
+  return tt('ios.imageSaveToast')
+}
 
 // ── 送信前（iPhone / iPad）─────────────
 
-export const IOS_SEND_NOTICE_TITLE = '容量の注意'
+export function iosSendNoticeTitle() {
+  return tt('ios.sendNoticeTitle')
+}
 
 export function iosSendNoticeBody(mb) {
-  return `最大約 ${mb} MB。転送が不安定になることがあります。`
+  return tt('ios.sendNoticeBody', { mb })
 }
 
 export function iosSendConfirm300Body(mb) {
-  return `約 ${mb} MB。このサイズは失敗しやすいです。続行しますか？`
+  return tt('ios.sendConfirm300Body', { mb })
 }

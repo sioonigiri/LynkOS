@@ -1,4 +1,5 @@
 import Foundation
+import LynkOSCore
 
 /// 受信直後・保存ダイアログ表示中のみ保持（一時ファイル URL 付き）。
 struct PendingReceivedFile: Identifiable, Equatable {
@@ -63,12 +64,13 @@ struct ReceivedFileRecord: Identifiable, Equatable {
         return "📄"
     }
 
+    @MainActor
     var statusLabel: String {
         switch destination {
         case .photos:
-            "写真に保存済み"
+            L(.transferSavedToPhotos)
         case .files:
-            "ファイルに保存済み"
+            L(.transferSavedToFiles)
         }
     }
 }
