@@ -7,12 +7,17 @@ devices-changed を通知する。内容が同じ heartbeat では通知しな�
 （クライアントが通知を受けて再登録すると通知→登録→通知…の無限ループになるため）。
 
 同一 Wi-Fi 上の端末のみ相互に見えるよう、公開 IP（_client_ip）でスコープする。
+
+一覧への出入り（登録・内容変更・削除・TTL 切れ）は presence_log でログに残す。
 """
+import logging
 import time
 from typing import Optional
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+
+from signaling.presence_log import group_tag, log_event
 
 PRESENCE_GROUP = 'lynkos_presence'
 
@@ -51,6 +56,14 @@ def _sweep_expired(now: float):
     expired = [d for d in _online_devices.values() if now - d['_ts'] >= DEVICE_TTL]
     for d in expired:
         _online_devices.pop(d['deviceId'], None)
+        log_event(
+            'expire',
+            device=d['deviceId'],
+            platform=d.get('platform'),
+            group=group_tag(d.get('_client_ip', '')),
+            last_via=d.get('_via'),
+            age=now - d['_ts'],
+        )
     for client_ip in {d.get('_client_ip', '') for d in expired}:
         _notify_devices_changed(client_ip)
 
@@ -62,17 +75,30 @@ def _store(entry: dict) -> bool:
     _online_devices[entry['deviceId']] = entry
 
     new_ip = entry.get('_client_ip', '')
+    log = dict(
+        device=entry['deviceId'],
+        platform=entry.get('platform'),
+        group=group_tag(new_ip),
+        via=entry.get('_via'),
+    )
     if previous is None:
+        log_event('register', change='new', **log)
         _notify_devices_changed(new_ip)
         return True
+    log['gap'] = entry['_ts'] - previous['_ts']
     old_ip = previous.get('_client_ip', '')
     if old_ip != new_ip:
+        log_event('register', change='moved', from_group=group_tag(old_ip), **log)
         _notify_devices_changed(old_ip)
         _notify_devices_changed(new_ip)
         return True
-    if _public(previous) != _public(entry):
+    before, after = _public(previous), _public(entry)
+    if before != after:
+        fields = sorted(k for k in before.keys() | after.keys() if before.get(k) != after.get(k))
+        log_event('register', change='updated', fields=','.join(fields), **log)
         _notify_devices_changed(new_ip)
         return True
+    log_event('register', level=logging.DEBUG, change='heartbeat', **log)
     return False
 
 
@@ -107,14 +133,26 @@ def register_from_http(
         'platform': platform if isinstance(platform, str) else '',
         **({'icon': icon} if icon else {}),
         '_client_ip': client_ip,
+        '_via': 'http',
         '_ts': time.time(),
     })
 
 
-def remove_device(device_id: str):
+def remove_device(device_id: str, reason: str):
+    """reason: 削除要求の経路（http-delete / beacon など）。ログにそのまま残す。"""
     existing = _online_devices.pop(device_id, None)
-    if existing:
-        _notify_devices_changed(existing.get('_client_ip', ''))
+    if not existing:
+        log_event('remove', device=device_id, reason=reason, result='not-registered')
+        return
+    log_event(
+        'remove',
+        device=device_id,
+        platform=existing.get('platform'),
+        group=group_tag(existing.get('_client_ip', '')),
+        reason=reason,
+        age=time.time() - existing['_ts'],
+    )
+    _notify_devices_changed(existing.get('_client_ip', ''))
 
 
 def merge_from_ws_device_payload(dev: dict, client_ip: str = '') -> Optional[dict]:
@@ -153,6 +191,7 @@ def merge_from_ws_device_payload(dev: dict, client_ip: str = '') -> Optional[dic
         'type': type_,
         'platform': platform,
         '_client_ip': client_ip or existing.get('_client_ip', ''),
+        '_via': 'ws',
         '_ts': time.time(),
     }
 

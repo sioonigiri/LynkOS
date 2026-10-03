@@ -152,3 +152,22 @@ mimetypes.add_type('text/css', '.css')
 mimetypes.add_type('text/javascript', '.mjs')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# 端末一覧の出入りログ（signaling/presence_log.py）。heartbeat も見たいときは LYNKOS_LOG_LEVEL=DEBUG
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'plain': {'format': '%(asctime)s %(message)s'},
+    },
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler', 'formatter': 'plain'},
+    },
+    'loggers': {
+        'lynkos': {
+            'handlers': ['console'],
+            'level': os.environ.get('LYNKOS_LOG_LEVEL', 'INFO').upper(),
+            'propagate': False,
+        },
+    },
+}

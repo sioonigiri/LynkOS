@@ -137,13 +137,13 @@ class PresenceNotificationTests(TestCase):
         self.assertEqual(self.notify.call_count, 2)
 
     def test_remove_unknown_device_does_not_notify(self):
-        presence_state.remove_device('missing')
+        presence_state.remove_device('missing', reason='http-delete')
         self.notify.assert_not_called()
 
     def test_remove_known_device_notifies(self):
         self.register()
         self.notify.reset_mock()
-        presence_state.remove_device('ios-1')
+        presence_state.remove_device('ios-1', reason='http-delete')
         self.notify.assert_called_once_with('203.0.113.10')
 
     def test_ws_device_info_unchanged_is_not_rebroadcast(self):
@@ -157,3 +157,56 @@ class PresenceNotificationTests(TestCase):
         dev = {'deviceId': 'ios-1', 'name': 'iPhone', 'type': 'mobile', 'platform': 'ios'}
         self.assertIsNone(presence_state.merge_from_ws_device_payload(dev, '203.0.113.10'))
         self.notify.assert_not_called()
+
+
+class PresenceLogTests(TestCase):
+    """一覧から消えた端末と理由がログで追えること。"""
+
+    def setUp(self):
+        presence_state._online_devices.clear()
+        patcher = mock.patch.object(presence_state, '_notify_devices_changed')
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.addCleanup(presence_state._online_devices.clear)
+
+    def register(self):
+        presence_state.register_from_http('ios-1', 'iPhone', 'mobile', 'ios', None, client_ip='203.0.113.10')
+
+    def test_logs_new_registration_without_ip_or_name(self):
+        with self.assertLogs('lynkos.presence', 'INFO') as logs:
+            self.register()
+        line = logs.output[0]
+        self.assertIn('event=register', line)
+        self.assertIn('change=new', line)
+        self.assertIn('device=ios-1', line)
+        self.assertIn('via=http', line)
+        self.assertNotIn('203.0.113.10', line)
+        self.assertNotIn('iPhone', line)
+
+    def test_unchanged_heartbeat_is_debug_only(self):
+        self.register()
+        with self.assertLogs('lynkos.presence', 'DEBUG') as logs:
+            self.register()
+        self.assertEqual(len(logs.records), 1)
+        self.assertEqual(logs.records[0].levelname, 'DEBUG')
+        self.assertIn('change=heartbeat', logs.output[0])
+
+    def test_logs_removal_reason(self):
+        self.register()
+        with self.assertLogs('lynkos.presence', 'INFO') as logs:
+            presence_state.remove_device('ios-1', reason='http-delete')
+        self.assertIn('event=remove', logs.output[0])
+        self.assertIn('reason=http-delete', logs.output[0])
+
+    def test_logs_removal_of_unregistered_device(self):
+        with self.assertLogs('lynkos.presence', 'INFO') as logs:
+            presence_state.remove_device('ios-1', reason='http-delete')
+        self.assertIn('result=not-registered', logs.output[0])
+
+    def test_logs_ttl_expiry(self):
+        self.register()
+        presence_state._online_devices['ios-1']['_ts'] -= presence_state.DEVICE_TTL + 1
+        with self.assertLogs('lynkos.presence', 'INFO') as logs:
+            presence_state.active_devices_public()
+        self.assertIn('event=expire', logs.output[0])
+        self.assertIn('last_via=http', logs.output[0])

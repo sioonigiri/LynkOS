@@ -1,9 +1,17 @@
 import json
+import time
+
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 from signaling.presence_state import merge_from_ws_device_payload, presence_group_for
 from signaling.network import client_ip_from_scope
+from signaling.presence_log import group_tag, log_event
+
+
+def _conn_id(channel_name: str) -> str:
+    """ログ用の短い接続 ID（同じ端末の接続・切断を対応付けるため）。"""
+    return channel_name[-6:]
 
 # ルームごとに接続中の channel_name を管理
 # { room_group_name: [channel_name, ...] }
@@ -37,6 +45,11 @@ class SignalingConsumer(AsyncWebsocketConsumer):
 
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
+        self.connected_at = time.time()
+        log_event(
+            'ws-connect', kind='signal', conn=_conn_id(self.channel_name),
+            room=self.room_name, members=len(existing) + 1,
+        )
 
         # 既存メンバーへ「新しい人が来た」を通知
         await self.channel_layer.group_send(
@@ -57,6 +70,13 @@ class SignalingConsumer(AsyncWebsocketConsumer):
             }))
 
     async def disconnect(self, close_code):
+        if not hasattr(self, 'room_group_name'):
+            return
+        log_event(
+            'ws-disconnect', kind='signal', conn=_conn_id(self.channel_name),
+            room=self.room_name, code=close_code,
+            duration=time.time() - getattr(self, 'connected_at', time.time()),
+        )
         # メンバーリストから削除
         room_list = _room_members.get(self.room_group_name, [])
         if self.channel_name in room_list:
@@ -135,10 +155,17 @@ class InboxConsumer(AsyncWebsocketConsumer):
         self.inbox_group = f'{INBOX_PREFIX}{self.device_id}'
         await self.channel_layer.group_add(self.inbox_group, self.channel_name)
         await self.accept()
+        self.connected_at = time.time()
+        log_event('ws-connect', kind='inbox', conn=_conn_id(self.channel_name), device=self.device_id)
 
     async def disconnect(self, close_code):
         grp = getattr(self, 'inbox_group', None)
         if grp:
+            log_event(
+                'ws-disconnect', kind='inbox', conn=_conn_id(self.channel_name),
+                device=self.device_id, code=close_code,
+                duration=time.time() - getattr(self, 'connected_at', time.time()),
+            )
             await self.channel_layer.group_discard(grp, self.channel_name)
 
     async def receive(self, text_data):
@@ -183,10 +210,22 @@ class PresenceConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.client_ip = client_ip_from_scope(self.scope)
         self.presence_group = presence_group_for(self.client_ip)
+        # どの端末の接続かは最初の device-info で分かる（それまでは '-'）
+        self.device_id = None
         await self.channel_layer.group_add(self.presence_group, self.channel_name)
         await self.accept()
+        self.connected_at = time.time()
+        log_event(
+            'ws-connect', kind='presence', conn=_conn_id(self.channel_name),
+            group=group_tag(self.client_ip),
+        )
 
     async def disconnect(self, close_code):
+        log_event(
+            'ws-disconnect', kind='presence', conn=_conn_id(self.channel_name),
+            device=self.device_id, group=group_tag(self.client_ip), code=close_code,
+            duration=time.time() - getattr(self, 'connected_at', time.time()),
+        )
         await self.channel_layer.group_discard(self.presence_group, self.channel_name)
 
     async def receive(self, text_data):
@@ -204,6 +243,13 @@ class PresenceConsumer(AsyncWebsocketConsumer):
         dev = data.get('device')
         if not isinstance(dev, dict):
             return
+        device_id = dev.get('deviceId') or dev.get('id')
+        if self.device_id is None and isinstance(device_id, str):
+            self.device_id = device_id[:512]
+            log_event(
+                'ws-identify', kind='presence', conn=_conn_id(self.channel_name),
+                device=self.device_id, group=group_tag(self.client_ip),
+            )
         public = await sync_to_async(merge_from_ws_device_payload)(dev, self.client_ip)
         if not public:
             return

@@ -14,6 +14,11 @@ class SignalingConfig(AppConfig):
         # runserver のリローダ親プロセスでは二重登録を避ける（daphne では RUN_MAIN は未設定）
         if 'runserver' in sys.argv and os.environ.get('RUN_MAIN') != 'true':
             return
+        from .presence_log import log_event
+
+        # デプロイ・再起動の境目。以降の register(change=new) が端末の再接続にあたる
+        log_event('server-start', pid=os.getpid())
+
         from .mdns_hub import start_hub_advertisement
 
         def _try_start(attempt: int = 0) -> None:

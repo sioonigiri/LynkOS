@@ -30,7 +30,7 @@ class DeviceListView(APIView):
 
     def delete(self, request):
         device_id = request.data.get('deviceId')
-        presence_state.remove_device(device_id)
+        presence_state.remove_device(device_id, reason='http-delete')
         return Response({'status': 'removed'})
 
 
@@ -39,7 +39,7 @@ class DeviceDeleteView(APIView):
 
     def post(self, request):
         device_id = request.data.get('deviceId')
-        presence_state.remove_device(device_id)
+        presence_state.remove_device(device_id, reason='beacon')
         return Response({'status': 'removed'})
 
 
