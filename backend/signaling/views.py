@@ -47,6 +47,5 @@ def health_check(request):
     """Watchdog や監視ツール向けのヘルスチェックエンドポイント。"""
     return JsonResponse({
         'status': 'ok',
-        'devices': len(presence_state.active_devices_public()),
         'ts': time.time(),
     })
